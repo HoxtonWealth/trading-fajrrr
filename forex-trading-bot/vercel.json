@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/ingest-candles",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/ingest-equity",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/run-pipeline",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/update-scorecards",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
