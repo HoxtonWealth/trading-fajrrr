@@ -21,6 +21,18 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/cron/poll-prediction-markets",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/generate-pm-signals",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/pm-scenario-analysis",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/cron/update-scorecards",
       "schedule": "0 0 * * *"
     },
