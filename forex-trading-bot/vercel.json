@@ -13,6 +13,10 @@
       "schedule": "0 */4 * * *"
     },
     {
+      "path": "/api/cron/ingest-news-sentiment",
+      "schedule": "0 */4 * * *"
+    },
+    {
       "path": "/api/cron/update-scorecards",
       "schedule": "0 0 * * *"
     }

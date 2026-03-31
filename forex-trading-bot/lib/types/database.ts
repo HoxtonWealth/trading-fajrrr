@@ -20,6 +20,10 @@ export interface IndicatorRow {
   ema_50: number
   adx_14: number
   atr_14: number
+  rsi_14: number | null
+  bb_upper: number | null
+  bb_middle: number | null
+  bb_lower: number | null
   created_at: string
 }
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { runPipeline } from '@/lib/pipeline'
+import { runPipeline, PipelineResult } from '@/lib/pipeline'
 
-const INSTRUMENT = 'XAU_USD' // Phase 1: single instrument
+const INSTRUMENTS = ['XAU_USD', 'EUR_GBP']
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -10,11 +10,25 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await runPipeline(INSTRUMENT)
+    const results: PipelineResult[] = []
+
+    for (const instrument of INSTRUMENTS) {
+      try {
+        const result = await runPipeline(instrument)
+        results.push(result)
+      } catch (error) {
+        console.error(`[cron/run-pipeline] Error for ${instrument}:`, error)
+        results.push({
+          action: 'none',
+          instrument,
+          details: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        })
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      ...result,
+      results,
     })
   } catch (error) {
     console.error('[cron/run-pipeline] Error:', error)
