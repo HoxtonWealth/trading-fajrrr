@@ -7,6 +7,7 @@ import { runPreTradeChecks, PreTradeContext } from '@/lib/risk/pre-trade-checks'
 import { pearsonCorrelation } from '@/lib/risk/correlation'
 import { runAgentPipeline } from '@/lib/agent-pipeline'
 import { STOP_MULTIPLIER_TREND, STOP_MULTIPLIER_MEAN_REV } from '@/lib/risk/constants'
+import { placeMarketOrder, closePosition, getOpenTrades as getOandaTrades } from '@/lib/services/oanda'
 import { alertTradeOpened, alertTradeClosed } from '@/lib/services/telegram'
 import { TradeRow } from '@/lib/types/database'
 
@@ -164,6 +165,18 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // --- Handle exit signal ---
   if (bestSignal.exitSignal && openTrades && openTrades.length > 0) {
     const tradeToClose = openTrades[0]
+
+    // Close on OANDA directly (no Render monitor yet)
+    try {
+      const oandaOpenTrades = await getOandaTrades()
+      const oandaMatch = oandaOpenTrades.find(t => t.instrument === instrument)
+      if (oandaMatch) {
+        await closePosition(oandaMatch.id)
+      }
+    } catch (oandaError) {
+      console.error(`[pipeline] OANDA close failed for ${instrument}:`, oandaError)
+    }
+
     const { error: closeError } = await supabase
       .from('trades')
       .update({
@@ -332,15 +345,32 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   }
 
   // 6. Insert pending trade
+  // Execute directly on OANDA (no Render monitor yet — see README for future architecture)
+  const oandaUnits = bestSignal.signal === 'short' ? -adjustedUnits : adjustedUnits
+  let actualPrice = closePrice
+
+  try {
+    const orderResult = await placeMarketOrder(instrument, oandaUnits, bestSignal.stopLoss!)
+    if (orderResult.orderFillTransaction?.price) {
+      actualPrice = parseFloat(orderResult.orderFillTransaction.price)
+    }
+  } catch (oandaError) {
+    console.error(`[pipeline] OANDA execution failed for ${instrument}:`, oandaError)
+    return { action: 'none', instrument, details: `OANDA execution failed: ${oandaError instanceof Error ? oandaError.message : 'Unknown'}` }
+  }
+
   const newTrade = {
     instrument,
     direction: bestSignal.signal,
     strategy: bestSignal.strategy,
     entry_price: closePrice,
+    expected_price: closePrice,
+    actual_price: actualPrice,
+    slippage: actualPrice - closePrice,
     stop_loss: bestSignal.stopLoss!,
     units: adjustedUnits,
     risk_percent: positionSize.riskPercent,
-    status: 'pending' as const,
+    status: 'open' as const,
     opened_at: new Date().toISOString(),
   }
 
