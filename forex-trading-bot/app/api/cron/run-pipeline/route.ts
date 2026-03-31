@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { runPipeline, PipelineResult } from '@/lib/pipeline'
 
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP']
+const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')

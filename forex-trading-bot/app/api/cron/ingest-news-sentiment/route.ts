@@ -3,11 +3,15 @@ import { fetchForexNews } from '@/lib/services/finnhub'
 import { callLLM } from '@/lib/services/openrouter'
 import { supabase } from '@/lib/services/supabase'
 
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP']
+const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 
 const INSTRUMENT_KEYWORDS: Record<string, string[]> = {
   XAU_USD: ['gold', 'xau', 'precious metal', 'bullion', 'safe haven'],
-  EUR_GBP: ['euro', 'eur', 'pound', 'gbp', 'sterling', 'ecb', 'boe', 'bank of england'],
+  EUR_GBP: ['euro pound', 'eur/gbp', 'ecb boe', 'sterling euro'],
+  EUR_USD: ['euro dollar', 'eur/usd', 'eurusd', 'ecb fed', 'european central bank'],
+  USD_JPY: ['dollar yen', 'usd/jpy', 'usdjpy', 'boj', 'bank of japan', 'japanese yen'],
+  BCO_USD: ['brent', 'crude oil', 'opec', 'oil price', 'petroleum'],
+  US30_USD: ['dow jones', 'djia', 'us30', 'wall street', 'dow industrials'],
 }
 
 export async function GET(request: Request) {

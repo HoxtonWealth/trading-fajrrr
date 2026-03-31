@@ -20,6 +20,20 @@ export interface LLMResponse {
   content: string
   model: string
   tokensUsed: number
+  promptTokens: number
+  completionTokens: number
+  tier: ModelTier
+}
+
+/** Parse structured JSON from LLM response, with fallback */
+export function parseLLMJson<T>(content: string, fallback: T): T {
+  try {
+    // Strip markdown code fences if present
+    const cleaned = content.replace(/^```json?\n?/m, '').replace(/\n?```$/m, '').trim()
+    return JSON.parse(cleaned) as T
+  } catch {
+    return fallback
+  }
 }
 
 const MAX_RETRIES = 3
@@ -70,7 +84,7 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
 
       const data = await response.json() as {
         choices: Array<{ message: { content: string } }>
-        usage?: { total_tokens: number }
+        usage?: { total_tokens: number; prompt_tokens: number; completion_tokens: number }
         model: string
       }
 
@@ -78,6 +92,9 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
         content: data.choices[0]?.message?.content ?? '',
         model: data.model,
         tokensUsed: data.usage?.total_tokens ?? 0,
+        promptTokens: data.usage?.prompt_tokens ?? 0,
+        completionTokens: data.usage?.completion_tokens ?? 0,
+        tier: request.tier,
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error))

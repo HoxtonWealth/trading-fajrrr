@@ -8,7 +8,7 @@ import { calculateRSI } from '@/lib/indicators/rsi'
 import { calculateBollingerBands } from '@/lib/indicators/bollinger'
 import { Candle } from '@/lib/indicators/types'
 
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP']
+const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 const GRANULARITY = 'H4'
 const CANDLE_COUNT = 100 // Enough for ADX(14) which needs ~29 candles minimum
 

@@ -5,6 +5,7 @@ import { detectRegime } from '@/lib/strategies/regime-detector'
 import { calculatePositionSize } from '@/lib/risk/position-sizer'
 import { runPreTradeChecks, PreTradeContext } from '@/lib/risk/pre-trade-checks'
 import { pearsonCorrelation } from '@/lib/risk/correlation'
+import { runAgentPipeline } from '@/lib/agent-pipeline'
 import { STOP_MULTIPLIER_TREND, STOP_MULTIPLIER_MEAN_REV } from '@/lib/risk/constants'
 import { TradeRow } from '@/lib/types/database'
 
@@ -78,6 +79,27 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // 2. Detect regime
   const regime = detectRegime(indicatorRows[0].adx_14)
 
+  // 2b. Run agent pipeline for entry decisions (agents don't handle exits)
+  let agentSignal: 'long' | 'short' | 'hold' = 'hold'
+  let agentConfidence = 0
+  try {
+    const agentResult = await runAgentPipeline(instrument, {
+      ema_20: indicatorRows[0].ema_20,
+      ema_50: indicatorRows[0].ema_50,
+      adx_14: indicatorRows[0].adx_14,
+      atr_14: indicatorRows[0].atr_14,
+      rsi_14: indicatorRows[0].rsi_14,
+      bb_upper: indicatorRows[0].bb_upper,
+      bb_middle: indicatorRows[0].bb_middle,
+      bb_lower: indicatorRows[0].bb_lower,
+      close: closePrice,
+    })
+    agentSignal = agentResult.decision.decision
+    agentConfidence = agentResult.decision.confidence
+  } catch (error) {
+    console.error(`[pipeline] Agent pipeline failed for ${instrument}, using technical-only:`, error)
+  }
+
   // 3. Run appropriate strategies based on regime
   let bestSignal: { signal: 'long' | 'short' | 'none'; stopLoss: number | null; exitSignal: boolean; exitReason: string | null; strategy: 'trend' | 'mean_reversion' } = {
     signal: 'none', stopLoss: null, exitSignal: false, exitReason: null, strategy: 'trend',
@@ -122,6 +144,19 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
           bestSignal = { ...mrSignal, strategy: 'mean_reversion' }
         }
       }
+    }
+  }
+
+  // If agents have a high-confidence signal, use it for entries (overrides technical)
+  if (agentConfidence >= 0.4 && agentSignal !== 'hold' && !bestSignal.exitSignal) {
+    const stopMultiplierForAgent = bestSignal.strategy === 'mean_reversion' ? STOP_MULTIPLIER_MEAN_REV : STOP_MULTIPLIER_TREND
+    const atr = indicatorRows[0].atr_14
+    bestSignal = {
+      signal: agentSignal === 'long' ? 'long' : 'short',
+      stopLoss: agentSignal === 'long' ? closePrice - atr * stopMultiplierForAgent : closePrice + atr * stopMultiplierForAgent,
+      exitSignal: false,
+      exitReason: null,
+      strategy: regime.strategies[0],
     }
   }
 
