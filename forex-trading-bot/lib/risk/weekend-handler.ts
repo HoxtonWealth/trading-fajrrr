@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/services/supabase'
 import { getOpenTrades, modifyTradeStopLoss } from '@/lib/services/oanda'
+import { alertWeekend } from '@/lib/services/telegram'
 import {
   FRIDAY_TIGHTEN_HOUR_UTC,
   FRIDAY_TIGHTEN_MINUTE_UTC,
@@ -110,10 +111,10 @@ export async function handleWeekendTransition(): Promise<WeekendCheckResult> {
       .from('system_state')
       .upsert({ key: 'weekend_mode', value: 'true', updated_at: now.toISOString() })
 
-    return {
-      action: 'enter_weekend',
-      details: `Weekend mode ON. Closed ${mrTrades?.length ?? 0} MR trades, tightened trend stops.`,
-    }
+    const details = `Weekend mode ON. Closed ${mrTrades?.length ?? 0} MR trades, tightened trend stops.`
+    alertWeekend('enter_weekend', details).catch(() => {})
+
+    return { action: 'enter_weekend', details }
   }
 
   // Exit weekend mode
@@ -126,6 +127,8 @@ export async function handleWeekendTransition(): Promise<WeekendCheckResult> {
       action: 'exit_weekend',
       details: 'Weekend mode OFF. Normal trading resumed.',
     }
+
+    alertWeekend('exit_weekend', 'Normal trading resumed.').catch(() => {})
   }
 
   return { action: 'none', details: isWeekendMode ? 'In weekend mode' : 'Normal trading hours' }

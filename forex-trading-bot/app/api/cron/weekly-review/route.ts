@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { runWeeklyReview } from '@/lib/learning/health-reviewer'
 import { runReflection } from '@/lib/learning/reflection-runner'
+import { alertWeeklyReview } from '@/lib/services/telegram'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -14,6 +15,12 @@ export async function GET(request: Request) {
 
     // Run weekly health review
     const review = await runWeeklyReview()
+
+    await alertWeeklyReview({
+      sharpeRatio: review.sharpeRatio,
+      recommendations: review.recommendations,
+      strategyPauses: review.strategyPauses,
+    }).catch(() => {})
 
     return NextResponse.json({
       success: true,

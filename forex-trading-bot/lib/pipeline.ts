@@ -7,6 +7,7 @@ import { runPreTradeChecks, PreTradeContext } from '@/lib/risk/pre-trade-checks'
 import { pearsonCorrelation } from '@/lib/risk/correlation'
 import { runAgentPipeline } from '@/lib/agent-pipeline'
 import { STOP_MULTIPLIER_TREND, STOP_MULTIPLIER_MEAN_REV } from '@/lib/risk/constants'
+import { alertTradeOpened, alertTradeClosed } from '@/lib/services/telegram'
 import { TradeRow } from '@/lib/types/database'
 
 export interface PipelineResult {
@@ -176,6 +177,13 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
       throw new Error(`Failed to close trade: ${closeError.message}`)
     }
 
+    alertTradeClosed({
+      instrument,
+      direction: tradeToClose.direction,
+      pnl: tradeToClose.pnl ?? 0,
+      closeReason: bestSignal.exitReason ?? 'unknown',
+    }).catch(() => {})
+
     return {
       action: 'close_trade',
       instrument,
@@ -343,6 +351,16 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   if (insertError) {
     throw new Error(`Failed to insert trade: ${insertError.message}`)
   }
+
+  alertTradeOpened({
+    instrument,
+    direction: bestSignal.signal,
+    strategy: bestSignal.strategy,
+    units: adjustedUnits,
+    entryPrice: closePrice,
+    stopLoss: bestSignal.stopLoss!,
+    riskPercent: positionSize.riskPercent,
+  }).catch(() => {})
 
   return {
     action: 'open_trade',
