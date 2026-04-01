@@ -7,7 +7,7 @@
  * API docs: https://open-api.capital.com/
  */
 
-const CAPITAL_BASE_URL = process.env.CAPITAL_BASE_URL || 'https://demo-api-capital.backend-capital.com'
+const CAPITAL_BASE_URL = (process.env.CAPITAL_BASE_URL || 'https://demo-api-capital.backend-capital.com').replace(/\/+$/, '')
 const CAPITAL_API_KEY = process.env.CAPITAL_API_KEY
 const CAPITAL_IDENTIFIER = process.env.CAPITAL_IDENTIFIER
 const CAPITAL_PASSWORD = process.env.CAPITAL_PASSWORD

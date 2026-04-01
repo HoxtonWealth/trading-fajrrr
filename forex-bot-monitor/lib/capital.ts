@@ -3,7 +3,7 @@
  * Session auth with auto-renewal.
  */
 
-const BASE_URL = process.env.CAPITAL_BASE_URL || 'https://demo-api-capital.backend-capital.com'
+const BASE_URL = (process.env.CAPITAL_BASE_URL || 'https://demo-api-capital.backend-capital.com').replace(/\/+$/, '')
 const API_KEY = process.env.CAPITAL_API_KEY!
 const IDENTIFIER = process.env.CAPITAL_IDENTIFIER!
 const PASSWORD = process.env.CAPITAL_PASSWORD!
