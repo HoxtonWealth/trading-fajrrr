@@ -237,6 +237,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     atr: indicatorRows[0].atr_14,
     stopMultiplier,
     close: closePrice,
+    instrument,
   })
 
   // Apply regime size multiplier

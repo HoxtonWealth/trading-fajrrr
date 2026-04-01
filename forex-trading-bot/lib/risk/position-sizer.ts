@@ -1,6 +1,7 @@
 import {
   MAX_RISK_PER_TRADE,
   TARGET_ANNUAL_VOL,
+  LEVERAGE_CAPS,
 } from './constants'
 
 export interface PositionSizeInput {
@@ -8,6 +9,7 @@ export interface PositionSizeInput {
   atr: number
   stopMultiplier: number
   close: number
+  instrument?: string // for leverage cap enforcement
   winRate?: number   // for Kelly criterion (0 to 1)
   avgWinLoss?: number // avg win / avg loss ratio
 }
@@ -59,6 +61,15 @@ export function calculatePositionSize(input: PositionSizeInput): PositionSizeRes
   if (estimatedVol > 0) {
     const volMultiplier = TARGET_ANNUAL_VOL / estimatedVol
     units *= volMultiplier
+  }
+
+  // Step 4: Cap units to stay within leverage limit for this instrument
+  if (input.instrument) {
+    const leverageCap = LEVERAGE_CAPS[input.instrument] ?? 10
+    const maxUnits = (equity * leverageCap) / close
+    if (units > maxUnits) {
+      units = maxUnits
+    }
   }
 
   // Round down — never round up risk

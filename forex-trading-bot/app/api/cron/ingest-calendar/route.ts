@@ -33,6 +33,14 @@ export async function GET(request: Request) {
       `${FINNHUB_BASE_URL}/calendar/economic?from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
     )
 
+    if (response.status === 403) {
+      // Economic calendar is a Finnhub premium feature — degrade gracefully
+      return NextResponse.json({
+        success: true,
+        summary: 'Finnhub calendar requires premium plan — skipped. Bot trades normally without calendar data.',
+      })
+    }
+
     if (!response.ok) {
       throw new Error(`Finnhub calendar API error ${response.status}`)
     }
