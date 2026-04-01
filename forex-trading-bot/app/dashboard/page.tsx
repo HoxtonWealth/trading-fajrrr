@@ -31,7 +31,11 @@ export default async function Dashboard() {
   return (
     <main style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1200px', margin: '0 auto' }}>
       <h1>Forex Trading Bot — Dashboard</h1>
-      <p style={{ color: '#666' }}>Read-only status page. Auto-refreshes on load.</p>
+      <p style={{ color: '#666' }}>
+        Read-only status page. Auto-refreshes on load.
+        {' · '}
+        <a href="/markets" style={{ color: '#4a9' }}>Global Markets →</a>
+      </p>
 
       <section style={{ marginTop: '2rem' }}>
         <h2>Account</h2>

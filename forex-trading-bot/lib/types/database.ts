@@ -69,3 +69,47 @@ export interface AgentScorecardRow {
   last_updated: string
   created_at: string
 }
+
+export interface MarketAssetRow {
+  id: string
+  symbol: string
+  epic: string | null
+  yahoo_ticker: string | null
+  name: string
+  category: 'equities' | 'currencies' | 'commodities' | 'bonds' | 'crypto' | 'volatility'
+  data_source: 'capital' | 'external'
+  enabled: boolean
+  created_at: string
+}
+
+export interface MarketPriceRow {
+  id: string
+  asset_id: string
+  price: number
+  change_24h_pct: number | null
+  change_1w_pct: number | null
+  change_1q_pct: number | null
+  price_date: string
+  recorded_at: string
+}
+
+export interface MarketAnalysisRow {
+  id: string
+  analysis_date: string
+  market_summary: string | null
+  key_movers: Array<{ instrument: string; change: string; explanation: string }> | null
+  geopolitical_watch: string | null
+  week_ahead: string | null
+  raw_data: unknown
+  created_at: string
+}
+
+export interface NewsCacheRow {
+  id: string
+  title: string
+  url: string | null
+  source: string | null
+  category: 'market' | 'geopolitical'
+  published_at: string | null
+  fetched_at: string
+}

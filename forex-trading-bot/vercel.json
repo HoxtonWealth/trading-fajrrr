@@ -43,6 +43,14 @@
     {
       "path": "/api/cron/monthly-report",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/markets/refresh",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/ingest-geopolitical",
+      "schedule": "0 */4 * * *"
     }
   ]
 }
