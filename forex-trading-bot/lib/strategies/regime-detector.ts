@@ -15,14 +15,14 @@ export interface RegimeResult {
  * ADX 20–25 → Transition  → Both strategies at 50% size
  */
 export function detectRegime(adx: number): RegimeResult {
-  if (adx > 25) {
+  if (adx > 20) {
     return { regime: 'trending', strategies: ['trend'], sizeMultiplier: 1.0 }
   }
 
-  if (adx < 20) {
+  if (adx < 15) {
     return { regime: 'ranging', strategies: ['mean_reversion'], sizeMultiplier: 1.0 }
   }
 
-  // Transition zone: 20 <= ADX <= 25
+  // Transition zone: 15 <= ADX <= 20 — both strategies at 50% size
   return { regime: 'transition', strategies: ['trend', 'mean_reversion'], sizeMultiplier: 0.5 }
 }

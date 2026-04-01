@@ -35,8 +35,8 @@ export function evaluateTrendFollowing(
   hasOpenLong: boolean,
   hasOpenShort: boolean,
 ): TrendSignal {
-  const ADX_ENTRY_THRESHOLD = 25
-  const ADX_EXIT_THRESHOLD = 20
+  const ADX_ENTRY_THRESHOLD = 20
+  const ADX_EXIT_THRESHOLD = 15
 
   const emaLongNow = current.ema_20 > current.ema_50
   const emaLongPrev = previous.ema_20 > previous.ema_50
@@ -52,7 +52,7 @@ export function evaluateTrendFollowing(
       return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'ema_crossover_reversal' }
     }
     if (current.adx_14 < ADX_EXIT_THRESHOLD) {
-      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_20' }
+      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_15' }
     }
   }
 
@@ -61,7 +61,7 @@ export function evaluateTrendFollowing(
       return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'ema_crossover_reversal' }
     }
     if (current.adx_14 < ADX_EXIT_THRESHOLD) {
-      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_20' }
+      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_15' }
     }
   }
 

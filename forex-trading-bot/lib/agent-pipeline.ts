@@ -14,7 +14,7 @@ export interface AgentPipelineResult {
   usedAgents: boolean
 }
 
-const CONFIDENCE_THRESHOLD = 0.4
+const CONFIDENCE_THRESHOLD = 0.3
 
 /**
  * Full multi-agent pipeline.

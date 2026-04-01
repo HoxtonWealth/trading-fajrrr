@@ -32,9 +32,9 @@ export function evaluateMeanReversion(
   hasOpenLong: boolean,
   hasOpenShort: boolean,
 ): MeanRevSignal {
-  const RSI_OVERSOLD = 30
-  const RSI_OVERBOUGHT = 70
-  const ADX_RANGE_THRESHOLD = 20
+  const RSI_OVERSOLD = 40
+  const RSI_OVERBOUGHT = 60
+  const ADX_RANGE_THRESHOLD = 25
 
   // --- Exit signals ---
   if (hasOpenLong && current.close >= current.bb_middle) {

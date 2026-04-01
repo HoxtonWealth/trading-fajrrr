@@ -32,9 +32,9 @@ describe('evaluateTrendFollowing', () => {
     expect(result.exitSignal).toBe(false)
   })
 
-  it('returns no signal when ADX < 25 despite crossover', () => {
+  it('returns no signal when ADX < 20 despite crossover', () => {
     const previous = makeSnapshot({ ema_20: 2335, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 22 })
+    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 17 })
     const result = evaluateTrendFollowing(current, previous, false, false)
     expect(result.signal).toBe('none')
     expect(result.stopLoss).toBeNull()
@@ -57,12 +57,12 @@ describe('evaluateTrendFollowing', () => {
     expect(result.signal).toBe('none')
   })
 
-  it('generates exit when ADX drops below 20 for open long', () => {
+  it('generates exit when ADX drops below 15 for open long', () => {
     const previous = makeSnapshot({ ema_20: 2345, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 18 })
+    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 13 })
     const result = evaluateTrendFollowing(current, previous, true, false)
     expect(result.exitSignal).toBe(true)
-    expect(result.exitReason).toBe('adx_below_20')
+    expect(result.exitReason).toBe('adx_below_15')
   })
 
   it('generates exit on EMA crossover reversal for open short', () => {
@@ -73,12 +73,12 @@ describe('evaluateTrendFollowing', () => {
     expect(result.exitReason).toBe('ema_crossover_reversal')
   })
 
-  it('generates exit when ADX drops below 20 for open short', () => {
+  it('generates exit when ADX drops below 15 for open short', () => {
     const previous = makeSnapshot({ ema_20: 2335, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2334, ema_50: 2340, adx_14: 19 })
+    const current = makeSnapshot({ ema_20: 2334, ema_50: 2340, adx_14: 14 })
     const result = evaluateTrendFollowing(current, previous, false, true)
     expect(result.exitSignal).toBe(true)
-    expect(result.exitReason).toBe('adx_below_20')
+    expect(result.exitReason).toBe('adx_below_15')
   })
 
   // No position, no signal

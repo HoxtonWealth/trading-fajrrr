@@ -150,7 +150,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   }
 
   // If agents have a high-confidence signal, use it for entries (overrides technical)
-  if (agentConfidence >= 0.4 && agentSignal !== 'hold' && !bestSignal.exitSignal) {
+  if (agentConfidence >= 0.3 && agentSignal !== 'hold' && !bestSignal.exitSignal) {
     const stopMultiplierForAgent = bestSignal.strategy === 'mean_reversion' ? STOP_MULTIPLIER_MEAN_REV : STOP_MULTIPLIER_TREND
     const atr = indicatorRows[0].atr_14
     bestSignal = {
