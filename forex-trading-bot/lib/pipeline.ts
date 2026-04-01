@@ -7,7 +7,7 @@ import { runPreTradeChecks, PreTradeContext } from '@/lib/risk/pre-trade-checks'
 import { pearsonCorrelation } from '@/lib/risk/correlation'
 import { runAgentPipeline } from '@/lib/agent-pipeline'
 import { STOP_MULTIPLIER_TREND, STOP_MULTIPLIER_MEAN_REV } from '@/lib/risk/constants'
-import { placeMarketOrder, closePosition, getOpenTrades as getOandaTrades } from '@/lib/services/oanda'
+import { placeMarketOrder, closePosition, getOpenTrades as getOandaTrades } from '@/lib/services/capital'
 import { alertTradeOpened, alertTradeClosed } from '@/lib/services/telegram'
 import { TradeRow } from '@/lib/types/database'
 

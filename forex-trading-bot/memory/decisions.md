@@ -11,5 +11,9 @@ Format: `[DATE] DECISION — Context — Alternatives considered — Why this ch
 - **TypeScript strict mode** — Catch type errors at compile time, not at 3 AM when a trade fails.
 - **risk/constants.ts is IMMUTABLE** — AI agents never import this file. Risk limits are hardcoded. This is the single most important design decision in the entire system.
 
+### Session decisions
+- **[2026-03-31] Broker swap: OANDA → Capital.com** — OANDA account setup was problematic. Capital.com offers REST API with demo environment, all required instruments (EURUSD, USDJPY, GOLD, OIL_CRUDE, EURGBP, US30), is SCA-regulated in UAE, and fits our architecture. Internal instrument names kept as OANDA-style (EUR_USD) throughout the codebase, translated to Capital.com epics (EURUSD, GOLD) at the API boundary only. Session-based auth (CST + X-SECURITY-TOKEN) replaces Bearer token. Position creation is 2-step (dealReference → confirm → dealId). All function signatures kept identical so no downstream code changes needed.
+- **[2026-03-31] Skip Render monitor for paper trading** — Vercel pipeline executes trades directly on Capital.com instead of writing pending trades for a Render monitor. The monitor code (`forex-bot-monitor/`) is built and ready but not deployed. Will activate when transitioning to live trading with real money — the 60-second polling loop is critical for trailing stop management and circuit breaker enforcement that serverless crons can't provide.
+
 ---
 *Add new decisions below this line, newest first.*

@@ -1,5 +1,5 @@
 import { supabase } from './lib/supabase'
-import { placeMarketOrder } from './lib/oanda'
+import { placeMarketOrder } from './lib/capital'
 import { send } from './lib/telegram'
 
 /**

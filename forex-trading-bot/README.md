@@ -1,32 +1,32 @@
 # Autonomous Forex Trading Bot
 
-Fully autonomous, self-learning forex trading bot operating on OANDA with $1K–$5K capital.
+Fully autonomous, self-learning forex trading bot operating on Capital.com with $1K–$5K capital.
 
 ## Stack
 - **Next.js** on Vercel (cron jobs, API routes, dashboard)
 - **Supabase** (Postgres database — 14 tables)
 - **OpenRouter** (LLM routing — cheap + strong models)
-- **OANDA v20** (broker — practice & live)
+- **Capital.com** (broker — demo & live, SCA-regulated UAE)
 - **Finnhub** (news + economic calendar)
 - **Polymarket + Kalshi** (prediction market intelligence)
 - **Telegram** (alerts)
 
 ## Current Architecture
 
-Vercel handles everything: cron jobs run the trading pipeline, execute trades directly on OANDA, and manage all data ingestion. This is a simplified architecture for paper trading.
+Vercel handles everything: cron jobs run the trading pipeline, execute trades directly on Capital.com, and manage all data ingestion. This is a simplified architecture for paper trading.
 
 ### Future: Add Render Monitor ($7/mo)
 
 When transitioning to **live trading with real money**, add an always-on Render monitor (`forex-bot-monitor/`) for:
 - **60-second polling** — trailing stop management (can't wait for 4-hour cron)
 - **Circuit breakers** — close ALL positions immediately on 30% drawdown or 5% daily loss
-- **Trade execution** — Vercel writes `pending` trades, Render executes on OANDA (decoupled)
+- **Trade execution** — Vercel writes `pending` trades, Render executes on Capital.com (decoupled)
 - **Weekend handler** — real-time stop tightening on OANDA at Friday 19:30 UTC
 
 The monitor code is already built in `forex-bot-monitor/`. To activate:
 1. Deploy to Render as a Background Worker ($7/mo)
 2. Change pipeline to write `status: 'pending'` instead of executing directly
-3. Monitor reads pending trades from Supabase and executes on OANDA
+3. Monitor reads pending trades from Supabase and executes on Capital.com
 
 **Do NOT skip the Render monitor for real money.** The 60-second loop is critical for risk management that serverless crons can't provide.
 
@@ -34,7 +34,7 @@ The monitor code is already built in `forex-bot-monitor/`. To activate:
 
 ### Prerequisites
 - Node.js 20+
-- OANDA practice account + API key
+- Capital.com demo account (https://capital.com)
 - Supabase project
 - Vercel account (Pro for cron scheduling)
 - OpenRouter API key

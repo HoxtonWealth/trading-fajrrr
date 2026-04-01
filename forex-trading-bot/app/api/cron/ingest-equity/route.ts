@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAccountSummary } from '@/lib/services/oanda'
+import { getAccountSummary } from '@/lib/services/capital'
 import { supabase } from '@/lib/services/supabase'
 
 export async function GET(request: Request) {

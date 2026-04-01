@@ -1,5 +1,5 @@
 import { supabase } from './lib/supabase'
-import { getAccountSummary, closeTrade, getOpenTrades } from './lib/oanda'
+import { getAccountSummary, closeTrade, getOpenTrades } from './lib/capital'
 import { send } from './lib/telegram'
 
 const MAX_DRAWDOWN = 0.30

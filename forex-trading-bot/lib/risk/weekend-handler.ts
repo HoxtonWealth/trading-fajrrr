@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/services/supabase'
-import { getOpenTrades, modifyTradeStopLoss } from '@/lib/services/oanda'
+import { getOpenTrades, modifyTradeStopLoss } from '@/lib/services/capital'
 import { alertWeekend } from '@/lib/services/telegram'
 import {
   FRIDAY_TIGHTEN_HOUR_UTC,

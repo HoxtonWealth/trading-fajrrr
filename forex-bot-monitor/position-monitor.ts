@@ -1,5 +1,5 @@
 import { supabase } from './lib/supabase'
-import { getOpenTrades, modifyStopLoss } from './lib/oanda'
+import { getOpenTrades, modifyStopLoss } from './lib/capital'
 
 /**
  * Monitors open positions and manages trailing stops.

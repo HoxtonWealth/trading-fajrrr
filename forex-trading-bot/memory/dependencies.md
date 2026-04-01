@@ -3,14 +3,21 @@
 ## Known API behaviors
 Format: `[DATE] SERVICE — Quirk — Impact — Workaround`
 
-### OANDA v20 API (from docs review)
-- Base URL practice: `https://api-fxpractice.oanda.com/v3`
-- Base URL live: `https://api-fxtrade.oanda.com/v3`
-- Auth: `Bearer` token in `Authorization` header
-- Rate limit: 120 requests per second (generous)
-- Candle granularity codes: `M1`, `M5`, `M15`, `M30`, `H1`, `H4`, `D`, `W`, `M`
-- Instrument format: `EUR_USD` (underscore, not slash)
-- XAU/USD = `XAU_USD`, BCO/USD = `BCO_USD`, US30 = `US30_USD`
+### Capital.com REST API
+- Demo base URL: `https://demo-api-capital.backend-capital.com`
+- Live base URL: `https://api-capital.backend-capital.com`
+- Auth: session-based. POST `/api/v1/session` with `X-CAP-API-KEY` header + `{identifier, password}` body → returns `CST` and `X-SECURITY-TOKEN` in response headers
+- Session timeout: 10 minutes of inactivity — re-auth at start of each pipeline run
+- Rate limit: 10 req/sec, 1 position req per 0.1s, 1000 position req/hour on demo
+- Instrument format: "epics" — EURUSD, GOLD, OIL_CRUDE, US30 (NOT underscore format)
+- Internal instrument names stay OANDA-style (EUR_USD) — translated at API boundary only
+- Position creation is 2-step: POST `/api/v1/positions` → `{dealReference}` → GET `/api/v1/confirms/{dealReference}` → `{dealId, level, dealStatus}`
+- Close position: DELETE `/api/v1/positions/{dealId}` (not PUT like OANDA)
+- Update stop loss: PUT `/api/v1/positions/{dealId}` with `{stopLevel}`
+- Price data: bid/ask objects `{openPrice: {bid, ask}}` — we use mid-price (avg bid+ask)
+- Granularity: MINUTE, MINUTE_5, MINUTE_15, MINUTE_30, HOUR, HOUR_4, DAY, WEEK
+- No account ID in URL path — account selected via X-SECURITY-TOKEN
+- Instrument mapping: EUR_USD→EURUSD, USD_JPY→USDJPY, XAU_USD→GOLD, BCO_USD→OIL_CRUDE, EUR_GBP→EURGBP, US30_USD→US30
 
 ### Supabase
 - Free tier: 500 MB database, 2 GB bandwidth, 50K monthly active users

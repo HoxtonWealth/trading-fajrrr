@@ -1,7 +1,7 @@
 # Project: Autonomous Forex Trading Bot
 
 ## Architecture
-- **Stack:** Next.js (Vercel cron + API routes), Node.js (Render monitor), Supabase (Postgres), OpenRouter (LLM), OANDA v20 (broker)
+- **Stack:** Next.js (Vercel cron + API routes), Node.js (Render monitor), Supabase (Postgres), OpenRouter (LLM), Capital.com REST API (broker)
 - **2 repos:** `forex-trading-bot` (Vercel) + `forex-bot-monitor` (Render)
 - **This repo:** `forex-trading-bot` — all cron jobs, agent pipeline, risk gate, learning loops
 - **Blueprint:** `_bmad-output/planning-artifacts/trading-bot-blueprint-v3.md` — the single source of truth for ALL design decisions
@@ -16,7 +16,7 @@
 
 ## Current Phase
 **Phase 1 — Foundation (Weeks 1–4)**
-Target: OANDA client, indicators, trend following on XAU/USD, risk gate, scorecards.
+Target: Capital.com client, indicators, trend following on XAU/USD, risk gate, scorecards.
 Go/no-go gate: 50+ trades, positive expectancy, breakers tested, 5 days autonomous.
 
 ## Memory — Read BEFORE every task, update AFTER every session
@@ -47,7 +47,7 @@ Go/no-go gate: 50+ trades, positive expectancy, breakers tested, 5 days autonomo
 1. Code compiles with zero TypeScript errors
 2. All existing tests still pass
 3. New risk-critical code has tests
-4. Error handling covers API failures (OANDA, OpenRouter, Supabase)
+4. Error handling covers API failures (Capital.com, OpenRouter, Supabase)
 5. No hardcoded secrets in code
 6. Memory files updated
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { fetchCandles, OandaCandle } from '@/lib/services/oanda'
+import { fetchCandles, OandaCandle } from '@/lib/services/capital'
 import { supabase } from '@/lib/services/supabase'
 import { calculateEMA } from '@/lib/indicators/ema'
 import { calculateADX } from '@/lib/indicators/adx'

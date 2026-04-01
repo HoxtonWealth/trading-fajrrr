@@ -1,5 +1,5 @@
 import { supabase } from './lib/supabase'
-import { getOpenTrades, modifyStopLoss, closeTrade } from './lib/oanda'
+import { getOpenTrades, modifyStopLoss, closeTrade } from './lib/capital'
 import { send } from './lib/telegram'
 
 const FRIDAY_TIGHTEN_HOUR = 19
