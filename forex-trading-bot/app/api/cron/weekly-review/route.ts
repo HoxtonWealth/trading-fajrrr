@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { runWeeklyReview } from '@/lib/learning/health-reviewer'
 import { runReflection } from '@/lib/learning/reflection-runner'
 import { alertWeeklyReview } from '@/lib/services/telegram'
+import { logCron } from '@/lib/services/cron-logger'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -21,6 +22,12 @@ export async function GET(request: Request) {
       recommendations: review.recommendations,
       strategyPauses: review.strategyPauses,
     }).catch(() => {})
+
+    const sharpeWord = review.sharpeRatio > 0.5 ? 'good' : review.sharpeRatio > 0 ? 'okay' : 'poor'
+    const reflectionNote = reflection.reflected ? ` Also reviewed the last ${reflection.batchSize} trades for patterns.` : ''
+    const pauseNote = review.strategyPauses.length > 0 ? ` Paused: ${review.strategyPauses.join(', ')}.` : ''
+    const msg = `Weekly health check: performance is ${sharpeWord} (Sharpe: ${review.sharpeRatio.toFixed(2)}).${pauseNote}${reflectionNote}`
+    await logCron('weekly-review', msg)
 
     return NextResponse.json({
       success: true,

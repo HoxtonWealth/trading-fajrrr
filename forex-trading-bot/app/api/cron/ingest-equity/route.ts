@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAccountSummary } from '@/lib/services/capital'
 import { supabase } from '@/lib/services/supabase'
+import { logCron } from '@/lib/services/cron-logger'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -63,11 +64,16 @@ export async function GET(request: Request) {
       throw new Error(`Equity snapshot insert failed: ${error.message}`)
     }
 
+    const pnlWord = dailyPnl >= 0 ? 'up' : 'down'
+    const msg = `Account at $${equity.toFixed(0)} (${pnlWord} $${Math.abs(dailyPnl).toFixed(0)} today). ${openPositions} open position${openPositions !== 1 ? 's' : ''}. Drawdown: ${drawdownPercent.toFixed(1)}%.`
+    await logCron('ingest-equity', msg)
+
     return NextResponse.json({
       success: true,
       summary: `Equity: $${equity.toFixed(2)}, Drawdown: ${drawdownPercent.toFixed(2)}%, Daily P&L: $${dailyPnl.toFixed(2)}`,
     })
   } catch (error) {
+    await logCron('ingest-equity', `Failed to check account: ${error instanceof Error ? error.message : 'Unknown'}`, false).catch(() => {})
     console.error('[cron/ingest-equity] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { callLLM, parseLLMJson } from '@/lib/services/openrouter'
+import { logCron } from '@/lib/services/cron-logger'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -65,11 +66,19 @@ Output valid JSON only.`,
       })
     }
 
+    const msg = parsed.confidence >= 0.6
+      ? `AI built a macro story from prediction markets: "${parsed.narrative.slice(0, 120)}..." — applies to ${parsed.instrumentImpacts.length} of our markets.`
+      : signals.length > 0
+        ? `Reviewed ${signals.length} prediction market signals but confidence was too low to act on (${(parsed.confidence * 100).toFixed(0)}%).`
+        : `No active prediction market signals to analyze right now.`
+    await logCron('pm-scenario-analysis', msg)
+
     return NextResponse.json({
       success: true,
       summary: `Scenario analysis: confidence=${parsed.confidence.toFixed(2)}, impacts=${parsed.instrumentImpacts.length} instruments`,
     })
   } catch (error) {
+    await logCron('pm-scenario-analysis', `Failed: ${error instanceof Error ? error.message : 'Unknown'}`, false).catch(() => {})
     console.error('[cron/pm-scenario-analysis] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },

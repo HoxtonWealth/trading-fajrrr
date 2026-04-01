@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { fetchMarketBySlug } from '@/lib/services/polymarket'
 import { fetchKalshiSeries } from '@/lib/services/kalshi'
+import { logCron } from '@/lib/services/cron-logger'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -92,6 +93,11 @@ export async function GET(request: Request) {
 
       polled++
     }
+
+    const msg = polled > 0
+      ? `Checked ${polled} prediction markets (Fed rates, recession odds, etc.) for probability shifts.`
+      : `Tried to check prediction markets but none returned data.`
+    await logCron('poll-prediction-markets', msg)
 
     return NextResponse.json({
       success: true,

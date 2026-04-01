@@ -6,12 +6,13 @@ export const revalidate = 0
 async function getData() {
   const supabase = getSupabase()
 
-  const [equity, trades, scorecards, signals, systemState] = await Promise.all([
+  const [equity, trades, scorecards, signals, systemState, cronLogs] = await Promise.all([
     supabase.from('equity_snapshots').select('*').order('created_at', { ascending: false }).limit(1).single(),
     supabase.from('trades').select('*').order('opened_at', { ascending: false }).limit(10),
     supabase.from('agent_scorecards').select('*').order('win_rate', { ascending: false }),
     supabase.from('prediction_signals').select('*').eq('status', 'active').order('strength', { ascending: false }).limit(5),
     supabase.from('system_state').select('*'),
+    supabase.from('cron_logs').select('*').order('created_at', { ascending: false }).limit(20),
   ])
 
   return {
@@ -20,6 +21,7 @@ async function getData() {
     scorecards: scorecards.data ?? [],
     activeSignals: signals.data ?? [],
     systemState: systemState.data ?? [],
+    activityLogs: cronLogs.data ?? [],
   }
 }
 
@@ -56,6 +58,31 @@ export default async function Dashboard() {
             ))}
           </tbody>
         </table>
+      </section>
+
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Bot Activity</h2>
+        {data.activityLogs.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {data.activityLogs.map((log: any) => (
+              <div key={log.id} style={{
+                padding: '10px 14px',
+                background: log.success ? '#f8f9fa' : '#fff3f3',
+                border: `1px solid ${log.success ? '#e0e0e0' : '#ffcccc'}`,
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <strong style={{ color: '#555' }}>{log.cron_name}</strong>
+                  <span style={{ color: '#999', fontSize: '0.8rem' }}>
+                    {new Date(log.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div>{log.summary}</div>
+              </div>
+            ))}
+          </div>
+        ) : <p>No activity yet — crons will start logging here automatically.</p>}
       </section>
 
       <section style={{ marginTop: '2rem' }}>

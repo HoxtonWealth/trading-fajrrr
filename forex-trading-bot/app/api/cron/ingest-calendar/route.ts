@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
+import { logCron } from '@/lib/services/cron-logger'
 
 const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1'
@@ -34,10 +35,10 @@ export async function GET(request: Request) {
     )
 
     if (response.status === 403) {
-      // Economic calendar is a Finnhub premium feature — degrade gracefully
+      await logCron('ingest-calendar', 'Economic calendar needs a premium API plan — skipped. Bot trades fine without it.')
       return NextResponse.json({
         success: true,
-        summary: 'Finnhub calendar requires premium plan — skipped. Bot trades normally without calendar data.',
+        summary: 'Finnhub calendar requires premium plan — skipped.',
       })
     }
 

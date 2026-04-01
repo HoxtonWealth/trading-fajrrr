@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { fetchForexNews } from '@/lib/services/finnhub'
 import { callLLM } from '@/lib/services/openrouter'
 import { supabase } from '@/lib/services/supabase'
+import { logCron } from '@/lib/services/cron-logger'
 
 const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 
@@ -88,11 +89,16 @@ export async function GET(request: Request) {
       results.push(`${instrument}: ${relevant.length} headlines, score=${score.toFixed(2)}`)
     }
 
-    return NextResponse.json({
-      success: true,
-      summary: results.join(' | '),
-    })
+    // Build human summary
+    const totalHeadlines = results.reduce((s, r) => s + parseInt(r.split(' ')[1] || '0'), 0)
+    const msg = totalHeadlines > 0
+      ? `Read ${news.length} news articles. AI scored sentiment for each market — helps decide whether to boost or skip trades.`
+      : `Checked the news — nothing relevant to our markets right now.`
+    await logCron('ingest-news-sentiment', msg)
+
+    return NextResponse.json({ success: true, summary: results.join(' | ') })
   } catch (error) {
+    await logCron('ingest-news-sentiment', `Failed to read news: ${error instanceof Error ? error.message : 'Unknown'}`, false).catch(() => {})
     console.error('[cron/ingest-news-sentiment] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },

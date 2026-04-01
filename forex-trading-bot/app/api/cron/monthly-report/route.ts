@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { alertCustom } from '@/lib/services/telegram'
+import { logCron } from '@/lib/services/cron-logger'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -76,8 +77,13 @@ ${instrumentBreakdown || 'No data'}`
 
     await alertCustom('Monthly Report', report)
 
+    const pnlWord = totalPnl >= 0 ? 'profit' : 'loss'
+    const msg = `Monthly report: ${totalTrades} trades, ${winRate}% win rate, $${Math.abs(totalPnl).toFixed(0)} ${pnlWord}. Sharpe: ${sharpe.toFixed(2)}.`
+    await logCron('monthly-report', msg)
+
     return NextResponse.json({ success: true, summary: report })
   } catch (error) {
+    await logCron('monthly-report', `Failed to generate: ${error instanceof Error ? error.message : 'Unknown'}`, false).catch(() => {})
     console.error('[cron/monthly-report] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },

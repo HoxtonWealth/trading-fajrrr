@@ -7,6 +7,7 @@ import { calculateATR } from '@/lib/indicators/atr'
 import { calculateRSI } from '@/lib/indicators/rsi'
 import { calculateBollingerBands } from '@/lib/indicators/bollinger'
 import { Candle } from '@/lib/indicators/types'
+import { logCron } from '@/lib/services/cron-logger'
 
 const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 const GRANULARITY = 'H4'
@@ -27,11 +28,13 @@ export async function GET(request: Request) {
       results.push(summary)
     }
 
-    return NextResponse.json({
-      success: true,
-      summary: results.join(' | '),
-    })
+    const msg = `Fetched latest prices for all 6 markets and updated trend/momentum indicators.`
+    await logCron('ingest-candles', msg)
+
+    return NextResponse.json({ success: true, summary: results.join(' | ') })
   } catch (error) {
+    const msg = `Failed to fetch price data: ${error instanceof Error ? error.message : 'Unknown error'}`
+    await logCron('ingest-candles', msg, false).catch(() => {})
     console.error('[cron/ingest-candles] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
