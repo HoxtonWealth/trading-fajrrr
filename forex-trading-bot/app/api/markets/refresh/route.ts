@@ -48,11 +48,15 @@ async function createCapitalSession(): Promise<CapitalSession> {
   return { cst, securityToken }
 }
 
-interface CapitalMarket {
-  epic: string
+interface CapitalMarketSnapshot {
   bid: number
   offer: number
+}
+
+interface CapitalMarket {
+  epic: string
   instrumentName: string
+  snapshot: CapitalMarketSnapshot
 }
 
 async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Promise<Map<string, number>> {
@@ -75,9 +79,12 @@ async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Pro
   }
 
   const data = await response.json() as { marketDetails?: CapitalMarket[] }
+  console.log(`[markets/refresh] Capital.com returned ${data.marketDetails?.length ?? 0} markets`)
   for (const market of data.marketDetails ?? []) {
-    const midPrice = (market.bid + market.offer) / 2
-    prices.set(market.epic, midPrice)
+    if (market.snapshot?.bid && market.snapshot?.offer) {
+      const midPrice = (market.snapshot.bid + market.snapshot.offer) / 2
+      prices.set(market.epic, midPrice)
+    }
   }
 
   return prices
@@ -88,13 +95,20 @@ async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Pro
 async function fetchYahooPrices(tickers: string[]): Promise<Map<string, number>> {
   const prices = new Map<string, number>()
 
-  // Dynamic import to avoid issues if module isn't available
-  const yahooFinance = await import('yahoo-finance2').then(m => m.default)
+  let yahooFinance: { quote: (ticker: string) => Promise<{ regularMarketPrice?: number }> }
+  try {
+    const mod = await import('yahoo-finance2')
+    yahooFinance = mod.default || mod
+  } catch (importError) {
+    console.error('[markets/refresh] yahoo-finance2 import failed:', importError instanceof Error ? importError.message : importError)
+    return prices
+  }
 
   for (const ticker of tickers) {
     try {
-      const result = await yahooFinance.quote(ticker) as { regularMarketPrice?: number }
-      if (result.regularMarketPrice) {
+      const result = await yahooFinance.quote(ticker)
+      console.log(`[markets/refresh] Yahoo ${ticker}:`, JSON.stringify(result?.regularMarketPrice))
+      if (result?.regularMarketPrice) {
         prices.set(ticker, result.regularMarketPrice)
       }
     } catch (error) {
