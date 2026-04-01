@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { fetchMarketBySlug } from '@/lib/services/polymarket'
-import { fetchKalshiMarket } from '@/lib/services/kalshi'
+import { fetchKalshiSeries } from '@/lib/services/kalshi'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -20,23 +20,34 @@ export async function GET(request: Request) {
     }
 
     let polled = 0
+    let failed = 0
 
     for (const market of markets) {
       let probability: number | null = null
       let volume = 0
 
-      if (market.platform === 'polymarket') {
-        const data = await fetchMarketBySlug(market.external_id)
-        if (data) {
-          probability = data.probability
-          volume = data.volume
+      try {
+        if (market.platform === 'polymarket') {
+          const data = await fetchMarketBySlug(market.external_id)
+          if (data) {
+            probability = data.probability
+            volume = data.volume
+          }
+        } else if (market.platform === 'kalshi') {
+          // Kalshi uses series tickers — fetch all markets in series, pick nearest upcoming
+          const seriesMarkets = await fetchKalshiSeries(market.external_id)
+          if (seriesMarkets.length > 0) {
+            // Use the first market (nearest expiry) as the representative probability
+            // Average the "above threshold" probabilities to get an implied rate expectation
+            const avgProb = seriesMarkets.reduce((s, m) => s + m.probability, 0) / seriesMarkets.length
+            probability = avgProb
+            volume = seriesMarkets.reduce((s, m) => s + m.volume, 0)
+          }
         }
-      } else if (market.platform === 'kalshi') {
-        const data = await fetchKalshiMarket(market.external_id)
-        if (data) {
-          probability = data.probability
-          volume = data.volume
-        }
+      } catch (error) {
+        console.error(`[poll-pm] Failed to poll ${market.platform}/${market.external_id}:`, error)
+        failed++
+        continue
       }
 
       if (probability === null) continue
@@ -84,7 +95,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      summary: `Polled ${polled}/${markets.length} markets`,
+      summary: `Polled ${polled}/${markets.length} markets (${failed} failed)`,
     })
   } catch (error) {
     console.error('[cron/poll-prediction-markets] Error:', error)
