@@ -48,65 +48,44 @@ async function createCapitalSession(): Promise<CapitalSession> {
   return { cst, securityToken }
 }
 
-interface CapitalMarketSnapshot {
-  bid: number
-  offer: number
-}
-
-interface CapitalMarket {
-  epic: string
-  instrumentName: string
-  snapshot: CapitalMarketSnapshot
+interface CapitalPriceCandle {
+  closePrice: { bid: number; ask: number }
 }
 
 async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Promise<Map<string, number>> {
   const prices = new Map<string, number>()
-
-  // Capital.com /markets endpoint accepts comma-separated epics
-  const epicStr = epics.join(',')
-  const response = await fetch(`${CAPITAL_BASE_URL}/api/v1/markets?epics=${epicStr}`, {
-    headers: {
-      'X-SECURITY-TOKEN': session.securityToken,
-      'CST': session.cst,
-      'Content-Type': 'application/json',
-    },
-    signal: AbortSignal.timeout(15000),
-  })
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '')
-    throw new Error(`Capital.com markets API error ${response.status}: ${body}`)
+  const headers = {
+    'X-SECURITY-TOKEN': session.securityToken,
+    'CST': session.cst,
+    'Content-Type': 'application/json',
   }
 
-  const rawText = await response.text()
-  console.log(`[markets/refresh] Capital.com raw response (first 500 chars): ${rawText.slice(0, 500)}`)
+  // Use the proven /api/v1/prices/{epic} endpoint (same as existing capital.ts)
+  // Fetch latest daily candle for each instrument
+  for (const epic of epics) {
+    try {
+      const response = await fetch(
+        `${CAPITAL_BASE_URL}/api/v1/prices/${epic}?resolution=DAY&max=1`,
+        { headers, signal: AbortSignal.timeout(10000) }
+      )
 
-  let data: { marketDetails?: CapitalMarket[] }
-  try {
-    data = JSON.parse(rawText)
-  } catch {
-    throw new Error(`Capital.com returned invalid JSON: ${rawText.slice(0, 200)}`)
-  }
+      if (!response.ok) {
+        console.error(`[markets/refresh] Capital.com price failed for ${epic}: ${response.status}`)
+        continue
+      }
 
-  const keys = Object.keys(data)
-  console.log(`[markets/refresh] Capital.com response keys: ${keys.join(', ')}`)
-  console.log(`[markets/refresh] marketDetails count: ${data.marketDetails?.length ?? 'undefined'}`)
-
-  if (data.marketDetails?.length) {
-    const sample = data.marketDetails[0]
-    console.log(`[markets/refresh] First market sample: ${JSON.stringify(sample).slice(0, 300)}`)
-  }
-
-  for (const market of data.marketDetails ?? []) {
-    const snap = market.snapshot || (market as unknown as Record<string, unknown>)
-    const bid = (snap as { bid?: number }).bid
-    const offer = (snap as { offer?: number }).offer
-    if (bid && offer) {
-      const midPrice = (bid + offer) / 2
-      prices.set(market.epic, midPrice)
+      const data = await response.json() as { prices?: CapitalPriceCandle[] }
+      const candle = data.prices?.[0]
+      if (candle?.closePrice) {
+        const midPrice = (candle.closePrice.bid + candle.closePrice.ask) / 2
+        prices.set(epic, midPrice)
+      }
+    } catch (error) {
+      console.error(`[markets/refresh] Capital.com ${epic}:`, error instanceof Error ? error.message : error)
     }
   }
 
+  console.log(`[markets/refresh] Capital.com: got ${prices.size}/${epics.length} prices`)
   return prices
 }
 
