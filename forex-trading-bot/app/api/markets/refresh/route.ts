@@ -208,10 +208,13 @@ export async function GET() {
     const externalAssets = assets.filter(a => a.data_source === 'external' && a.yahoo_ticker)
 
     // 2-4. Fetch prices from both sources in parallel
+    console.log(`[markets/refresh] Fetching prices for ${capitalAssets.length} Capital.com + ${externalAssets.length} Yahoo instruments`)
+
     const [capitalPrices, yahooPrices] = await Promise.allSettled([
       // Capital.com
       (async () => {
         const session = await createCapitalSession()
+        console.log('[markets/refresh] Capital.com session created successfully')
         const epics = capitalAssets.map(a => a.epic!)
         return fetchCapitalPrices(session, epics)
       })(),
@@ -223,10 +226,18 @@ export async function GET() {
     const yahPrices = yahooPrices.status === 'fulfilled' ? yahooPrices.value : new Map<string, number>()
 
     if (capitalPrices.status === 'rejected') {
-      errors.push(`Capital.com: ${capitalPrices.reason}`)
+      const reason = capitalPrices.reason instanceof Error ? capitalPrices.reason.message : String(capitalPrices.reason)
+      console.error('[markets/refresh] Capital.com failed:', reason)
+      errors.push(`Capital.com: ${reason}`)
+    } else {
+      console.log(`[markets/refresh] Capital.com returned ${capPrices.size} prices`)
     }
     if (yahooPrices.status === 'rejected') {
-      errors.push(`Yahoo Finance: ${yahooPrices.reason}`)
+      const reason = yahooPrices.reason instanceof Error ? yahooPrices.reason.message : String(yahooPrices.reason)
+      console.error('[markets/refresh] Yahoo failed:', reason)
+      errors.push(`Yahoo Finance: ${reason}`)
+    } else {
+      console.log(`[markets/refresh] Yahoo returned ${yahPrices.size} prices`)
     }
 
     // 5-6. Calculate changes and upsert prices
