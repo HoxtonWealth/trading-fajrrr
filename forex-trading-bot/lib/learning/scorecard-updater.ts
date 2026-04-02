@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/services/supabase'
 import { MIN_DARWINIAN_WEIGHT, MAX_DARWINIAN_WEIGHT } from '@/lib/risk/constants'
+import { extractPostMortem } from '@/lib/learning/post-mortem'
 
 /**
  * Scorecard Updater — SQL-based + Darwinian weight adjustment.
@@ -56,6 +57,34 @@ export async function updateScorecards(): Promise<{ updated: number }> {
       agg.wins++
     } else {
       agg.losses++
+    }
+  }
+
+  // Extract post-mortems for trades that don't have lessons yet
+  const { data: tradesWithoutLessons } = await supabase
+    .from('trades')
+    .select('id, instrument, direction, strategy, entry_price, exit_price, pnl, opened_at, closed_at, close_reason')
+    .eq('status', 'closed')
+    .not('pnl', 'is', null)
+    .order('closed_at', { ascending: false })
+    .limit(5)
+
+  if (tradesWithoutLessons) {
+    for (const trade of tradesWithoutLessons) {
+      // Check if lesson already exists for this trade
+      const { data: existing } = await supabase
+        .from('trade_lessons')
+        .select('id')
+        .eq('trade_id', trade.id)
+        .limit(1)
+
+      if (!existing || existing.length === 0) {
+        try {
+          await extractPostMortem(trade as Parameters<typeof extractPostMortem>[0])
+        } catch (err) {
+          console.error(`[scorecard-updater] Post-mortem failed for trade ${trade.id}:`, err)
+        }
+      }
     }
   }
 

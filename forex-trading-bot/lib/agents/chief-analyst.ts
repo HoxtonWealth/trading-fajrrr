@@ -1,5 +1,6 @@
 import { callLLM, parseLLMJson } from '@/lib/services/openrouter'
 import { AgentScorecard, DebateArgument, ChiefDecision } from './types'
+import { getRelevantLessons } from '@/lib/learning/post-mortem'
 
 const SYSTEM_PROMPT = `You are the Chief Analyst for a forex trading bot. You make the final trading decision.
 
@@ -46,6 +47,18 @@ export async function runChiefAnalyst(
       })
       .join('\n')
 
+    // Fetch relevant lessons from past trades
+    let lessonsContext = ''
+    try {
+      const lessons = await getRelevantLessons(instrument, 3)
+      if (lessons.length > 0) {
+        lessonsContext = '\n\nPAST LESSONS (from trade post-mortems):\n' +
+          lessons.map(l => `- [${l.instrument}] ${l.lesson} (tags: ${l.tags.join(', ')})`).join('\n')
+      }
+    } catch {
+      // Non-critical — continue without lessons
+    }
+
     const response = await callLLM({
       tier: 'cheap',
       systemPrompt: SYSTEM_PROMPT,
@@ -60,7 +73,7 @@ Key points: ${bullArg.keyPoints.join('; ')}
 
 BEAR CASE:
 ${bearArg.argument}
-Key points: ${bearArg.keyPoints.join('; ')}`,
+Key points: ${bearArg.keyPoints.join('; ')}${lessonsContext}`,
       maxTokens: 300,
     })
 
