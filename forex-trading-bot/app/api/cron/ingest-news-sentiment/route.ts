@@ -4,8 +4,7 @@ import { getGeopoliticalSentiment } from '@/lib/services/gdelt'
 import { callLLM } from '@/lib/services/openrouter'
 import { supabase } from '@/lib/services/supabase'
 import { logCron } from '@/lib/services/cron-logger'
-
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
+import { getActiveInstruments } from '@/lib/instruments'
 
 const INSTRUMENT_KEYWORDS: Record<string, string[]> = {
   XAU_USD: ['gold', 'xau', 'precious metal', 'bullion', 'safe haven'],
@@ -21,6 +20,8 @@ export async function GET(request: Request) {
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const INSTRUMENTS = await getActiveInstruments()
 
   try {
     const news = await fetchForexNews()

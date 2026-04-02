@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server'
 import { runPipeline, PipelineResult } from '@/lib/pipeline'
 import { logCron } from '@/lib/services/cron-logger'
-
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
-
-const FRIENDLY_NAMES: Record<string, string> = {
-  XAU_USD: 'Gold', EUR_GBP: 'EUR/GBP', EUR_USD: 'EUR/USD',
-  USD_JPY: 'USD/JPY', BCO_USD: 'Oil', US30_USD: 'Dow Jones',
-}
+import { getActiveInstruments, getFriendlyNames } from '@/lib/instruments'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const INSTRUMENTS = await getActiveInstruments()
+  const FRIENDLY_NAMES = await getFriendlyNames()
 
   try {
     const results: PipelineResult[] = []
@@ -64,7 +61,7 @@ export async function GET(request: Request) {
         if (r.details.includes('Weekend')) return `${name} (weekend pause)`
         return `${name} (waiting)`
       })
-      lines.push(`Looked at all 6 markets, no new trades. ${regimes.join(', ')}.`)
+      lines.push(`Looked at all ${INSTRUMENTS.length} markets, no new trades. ${regimes.join(', ')}.`)
     }
 
     const msg = lines.join(' ')

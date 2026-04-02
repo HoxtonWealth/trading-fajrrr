@@ -8,8 +8,8 @@ import { calculateRSI } from '@/lib/indicators/rsi'
 import { calculateBollingerBands } from '@/lib/indicators/bollinger'
 import { Candle } from '@/lib/indicators/types'
 import { logCron } from '@/lib/services/cron-logger'
+import { getActiveInstruments } from '@/lib/instruments'
 
-const INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
 const GRANULARITY = 'H4'
 const CANDLE_COUNT = 100 // Enough for ADX(14) which needs ~29 candles minimum
 
@@ -20,6 +20,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const INSTRUMENTS = await getActiveInstruments()
+
   try {
     const results: string[] = []
 
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
       results.push(summary)
     }
 
-    const msg = `Fetched latest prices for all 6 markets and updated trend/momentum indicators.`
+    const msg = `Fetched latest prices for all ${INSTRUMENTS.length} markets and updated trend/momentum indicators.`
     await logCron('ingest-candles', msg)
 
     return NextResponse.json({ success: true, summary: results.join(' | ') })
