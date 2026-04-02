@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { fetchForexNews } from '@/lib/services/finnhub'
+import { getGeopoliticalSentiment } from '@/lib/services/gdelt'
 import { callLLM } from '@/lib/services/openrouter'
 import { supabase } from '@/lib/services/supabase'
 import { logCron } from '@/lib/services/cron-logger'
@@ -87,6 +88,44 @@ export async function GET(request: Request) {
       })
 
       results.push(`${instrument}: ${relevant.length} headlines, score=${score.toFixed(2)}`)
+
+      // Also ingest GDELT geopolitical sentiment for this instrument
+      try {
+        const gdelt = await getGeopoliticalSentiment(instrument)
+        if (gdelt.articleCount > 0) {
+          const gdeltHeadlines = gdelt.articles
+            .slice(0, 10)
+            .map((a, i) => `${i + 1}. ${a.title}`)
+            .join('\n')
+
+          let gdeltScore = 0
+          try {
+            const gdeltLLM = await callLLM({
+              tier: 'cheap',
+              systemPrompt: `You are a geopolitical sentiment analyzer. Given GDELT news headlines related to ${instrument}, output a single number between -1.0 (very bearish) and +1.0 (very bullish). Output ONLY the number.`,
+              userPrompt: `Rate the geopolitical sentiment for ${instrument}:\n\n${gdeltHeadlines}`,
+              maxTokens: 10,
+              temperature: 0.1,
+            })
+            const parsed = parseFloat(gdeltLLM.content.trim())
+            if (!isNaN(parsed) && parsed >= -1 && parsed <= 1) gdeltScore = parsed
+          } catch {
+            gdeltScore = 0
+          }
+
+          await supabase.from('news_sentiment').insert({
+            instrument,
+            score: gdeltScore,
+            headline_count: gdelt.articleCount,
+            headlines: gdelt.articles.slice(0, 10).map(a => a.title),
+            source: 'gdelt',
+          })
+
+          results.push(`${instrument} (GDELT): ${gdelt.articleCount} headlines, score=${gdeltScore.toFixed(2)}`)
+        }
+      } catch (gdeltErr) {
+        console.error(`[ingest-news-sentiment] GDELT failed for ${instrument}:`, gdeltErr)
+      }
     }
 
     // Build human summary

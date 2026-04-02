@@ -100,3 +100,34 @@ function deduplicateArticles(articles: GeopoliticalArticle[]): GeopoliticalArtic
     return true
   })
 }
+
+export const INSTRUMENT_GDELT_QUERIES: Record<string, string> = {
+  XAU_USD: 'gold price geopolitics war sanctions',
+  EUR_USD: 'eurozone economy ECB policy',
+  USD_JPY: 'japan yen BOJ monetary policy',
+  BCO_USD: 'oil price OPEC supply demand',
+  US30_USD: 'US economy stocks fed policy',
+  EUR_GBP: 'UK economy sterling Brexit BOE',
+}
+
+export async function getGeopoliticalSentiment(instrument: string): Promise<{
+  articles: GeopoliticalArticle[]
+  articleCount: number
+}> {
+  const query = INSTRUMENT_GDELT_QUERIES[instrument] ?? 'forex currency central bank'
+
+  try {
+    const articles = await queryGdelt(query, 15)
+    return {
+      articles: articles.map(a => ({
+        title: a.title,
+        url: a.url,
+        source: a.source || 'GDELT',
+        published_at: parseGdeltDate(a.seendate),
+      })),
+      articleCount: articles.length,
+    }
+  } catch {
+    return { articles: [], articleCount: 0 }
+  }
+}
