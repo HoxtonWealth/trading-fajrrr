@@ -39,6 +39,17 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
 
   const isWeekendMode = weekendState?.value === 'true'
 
+  // 0b. Check kill switch — halt everything if active
+  const { data: killSwitchState } = await supabase
+    .from('system_state')
+    .select('value')
+    .eq('key', 'kill_switch')
+    .single()
+
+  if (killSwitchState?.value === 'active') {
+    return { action: 'none', instrument, details: 'Kill switch active — pipeline halted' }
+  }
+
   // 1. Read latest 2 indicator rows
   const { data: indicatorRows, error: indError } = await supabase
     .from('indicators')
