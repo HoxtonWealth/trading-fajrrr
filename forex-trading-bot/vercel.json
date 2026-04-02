@@ -51,6 +51,10 @@
     {
       "path": "/api/cron/ingest-geopolitical",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/discover-instruments",
+      "schedule": "30 0 * * 0"
     }
   ]
 }
