@@ -113,3 +113,33 @@ export interface NewsCacheRow {
   published_at: string | null
   fetched_at: string
 }
+
+export interface TradeLessonRow {
+  id: string
+  trade_id: string
+  instrument: string
+  direction: string
+  process_quality: number
+  entry_quality: number
+  exit_quality: number
+  would_take_again: boolean
+  tags: string[]
+  market_condition: string
+  lesson: string
+  win_rate_context: Record<string, unknown>
+  created_at: string
+}
+
+export interface InstrumentUniverseRow {
+  id: string
+  instrument: string
+  display_name: string | null
+  asset_class: string | null
+  status: 'active' | 'watchlist' | 'removed'
+  added_reason: string | null
+  removed_reason: string | null
+  discovery_date: string
+  last_traded: string | null
+  performance_score: number
+  updated_at: string
+}
