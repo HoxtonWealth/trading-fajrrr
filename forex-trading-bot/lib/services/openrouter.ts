@@ -4,7 +4,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 export type ModelTier = 'cheap' | 'strong'
 
 const MODEL_MAP: Record<ModelTier, string> = {
-  cheap: 'google/gemini-flash-1.5',
+  cheap: 'google/gemini-2.0-flash-001',
   strong: 'anthropic/claude-sonnet-4-20250514',
 }
 
