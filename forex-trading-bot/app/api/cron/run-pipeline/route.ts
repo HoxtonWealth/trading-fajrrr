@@ -3,11 +3,18 @@ import { runPipeline, PipelineResult } from '@/lib/pipeline'
 import { logCron } from '@/lib/services/cron-logger'
 import { getActiveInstruments, getFriendlyNames } from '@/lib/instruments'
 import { screenInstruments } from '@/lib/intelligence/screener'
+import { shouldRunNow } from '@/lib/intelligence/scan-scheduler'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Scan scheduler — skip if current session doesn't need this cron now
+  const shouldRun = await shouldRunNow('run-pipeline')
+  if (!shouldRun) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to run in current session' })
   }
 
   const INSTRUMENTS = await getActiveInstruments()

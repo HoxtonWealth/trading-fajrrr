@@ -9,6 +9,7 @@ import { calculateBollingerBands } from '@/lib/indicators/bollinger'
 import { Candle } from '@/lib/indicators/types'
 import { logCron } from '@/lib/services/cron-logger'
 import { getActiveInstruments } from '@/lib/instruments'
+import { shouldRunNow } from '@/lib/intelligence/scan-scheduler'
 
 const GRANULARITY = 'H4'
 const CANDLE_COUNT = 100 // Enough for ADX(14) which needs ~29 candles minimum
@@ -18,6 +19,11 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const shouldRun = await shouldRunNow('ingest-candles')
+  if (!shouldRun) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time for candle ingestion' })
   }
 
   const INSTRUMENTS = await getActiveInstruments()
