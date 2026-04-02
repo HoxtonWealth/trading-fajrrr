@@ -78,11 +78,31 @@ async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Pro
     throw new Error(`Capital.com markets API error ${response.status}: ${body}`)
   }
 
-  const data = await response.json() as { marketDetails?: CapitalMarket[] }
-  console.log(`[markets/refresh] Capital.com returned ${data.marketDetails?.length ?? 0} markets`)
+  const rawText = await response.text()
+  console.log(`[markets/refresh] Capital.com raw response (first 500 chars): ${rawText.slice(0, 500)}`)
+
+  let data: { marketDetails?: CapitalMarket[] }
+  try {
+    data = JSON.parse(rawText)
+  } catch {
+    throw new Error(`Capital.com returned invalid JSON: ${rawText.slice(0, 200)}`)
+  }
+
+  const keys = Object.keys(data)
+  console.log(`[markets/refresh] Capital.com response keys: ${keys.join(', ')}`)
+  console.log(`[markets/refresh] marketDetails count: ${data.marketDetails?.length ?? 'undefined'}`)
+
+  if (data.marketDetails?.length) {
+    const sample = data.marketDetails[0]
+    console.log(`[markets/refresh] First market sample: ${JSON.stringify(sample).slice(0, 300)}`)
+  }
+
   for (const market of data.marketDetails ?? []) {
-    if (market.snapshot?.bid && market.snapshot?.offer) {
-      const midPrice = (market.snapshot.bid + market.snapshot.offer) / 2
+    const snap = market.snapshot || (market as unknown as Record<string, unknown>)
+    const bid = (snap as { bid?: number }).bid
+    const offer = (snap as { offer?: number }).offer
+    if (bid && offer) {
+      const midPrice = (bid + offer) / 2
       prices.set(market.epic, midPrice)
     }
   }
