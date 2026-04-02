@@ -1,4 +1,5 @@
 import { getSupabase } from '@/lib/services/supabase'
+import { KillSwitchButton } from './KillSwitchButton'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -51,6 +52,13 @@ export default async function Dashboard() {
             </tbody>
           </table>
         ) : <p>No equity data yet</p>}
+      </section>
+
+      <section style={{ marginTop: '2rem' }}>
+        <h2>Kill Switch</h2>
+        <KillSwitchButton
+          initialState={data.systemState.find((s: { key: string }) => s.key === 'kill_switch')?.value ?? 'inactive'}
+        />
       </section>
 
       <section style={{ marginTop: '2rem' }}>
