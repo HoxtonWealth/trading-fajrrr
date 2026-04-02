@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { runPipeline, PipelineResult } from '@/lib/pipeline'
 import { logCron } from '@/lib/services/cron-logger'
 import { getActiveInstruments, getFriendlyNames } from '@/lib/instruments'
+import { screenInstruments } from '@/lib/intelligence/screener'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -12,10 +13,21 @@ export async function GET(request: Request) {
   const INSTRUMENTS = await getActiveInstruments()
   const FRIENDLY_NAMES = await getFriendlyNames()
 
+  // Screen instruments — prioritize top opportunities
+  let instrumentsToTrade = INSTRUMENTS
+  try {
+    const screened = await screenInstruments(INSTRUMENTS, 6)
+    if (screened.length > 0) {
+      instrumentsToTrade = screened.map(s => s.instrument)
+    }
+  } catch (screenErr) {
+    console.error('[cron/run-pipeline] Screener failed, using all instruments:', screenErr)
+  }
+
   try {
     const results: PipelineResult[] = []
 
-    for (const instrument of INSTRUMENTS) {
+    for (const instrument of instrumentsToTrade) {
       try {
         const result = await runPipeline(instrument)
         results.push(result)
