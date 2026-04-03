@@ -1,5 +1,6 @@
 import { getSupabase } from '@/lib/services/supabase'
 import { KillSwitchButton } from './KillSwitchButton'
+import { CircuitBreakerReset } from './CircuitBreakerReset'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -55,7 +56,8 @@ export default async function Dashboard() {
       </section>
 
       <section style={{ marginTop: '2rem' }}>
-        <h2>Kill Switch</h2>
+        <h2>Safety Controls</h2>
+        <CircuitBreakerReset currentDrawdown={data.equity ? Number(data.equity.drawdown_percent) : 0} />
         <KillSwitchButton
           initialState={data.systemState.find((s: { key: string }) => s.key === 'kill_switch')?.value ?? 'inactive'}
         />

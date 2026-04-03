@@ -17,14 +17,25 @@ export async function GET(request: Request) {
     const unrealizedPnl = parseFloat(account.unrealizedPL)
     const openPositions = account.openTradeCount
 
-    // 2. Get peak equity (highest equity ever recorded)
-    const { data: peakRow } = await supabase
+    // 2. Get peak equity (highest equity since last drawdown reset)
+    const { data: resetState } = await supabase
+      .from('system_state')
+      .select('value')
+      .eq('key', 'drawdown_reset_at')
+      .single()
+
+    let peakQuery = supabase
       .from('equity_snapshots')
       .select('equity')
       .order('equity', { ascending: false })
       .limit(1)
-      .single()
 
+    // If drawdown was reset, only look at snapshots after the reset
+    if (resetState?.value) {
+      peakQuery = peakQuery.gte('created_at', resetState.value)
+    }
+
+    const { data: peakRow } = await peakQuery.single()
     const peakEquity = peakRow ? Math.max(peakRow.equity, equity) : equity
 
     // 3. Compute drawdown
