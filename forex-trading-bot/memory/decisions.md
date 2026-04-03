@@ -15,5 +15,13 @@ Format: `[DATE] DECISION — Context — Alternatives considered — Why this ch
 - **[2026-03-31] Broker swap: OANDA → Capital.com** — OANDA account setup was problematic. Capital.com offers REST API with demo environment, all required instruments (EURUSD, USDJPY, GOLD, OIL_CRUDE, EURGBP, US30), is SCA-regulated in UAE, and fits our architecture. Internal instrument names kept as OANDA-style (EUR_USD) throughout the codebase, translated to Capital.com epics (EURUSD, GOLD) at the API boundary only. Session-based auth (CST + X-SECURITY-TOKEN) replaces Bearer token. Position creation is 2-step (dealReference → confirm → dealId). All function signatures kept identical so no downstream code changes needed.
 - **[2026-03-31] Skip Render monitor for paper trading** — Vercel pipeline executes trades directly on Capital.com instead of writing pending trades for a Render monitor. The monitor code (`forex-bot-monitor/`) is built and ready but not deployed. Will activate when transitioning to live trading with real money — the 60-second polling loop is critical for trailing stop management and circuit breaker enforcement that serverless crons can't provide.
 
+- **[2026-04-03] Trade frequency analysis — bottleneck ranking confirmed by data:**
+  1. EMA crossover requirement is the #1 blocker (11 crossovers in 14 days, only 3 passed ADX>20)
+  2. Transition regime makes trend following dead code (ADX 15-20 allows TF but TF needs ADX>20 — impossible)
+  3. Mean reversion (34 signals) is 11x more productive than trend following (3 signals)
+  4. Agent pipeline IS working (drove EUR_GBP trade despite no qualifying crossover) but 2/4 agents are effectively broken (sentiment=0.20, macro=always hold)
+  5. Quick wins identified: lower TF ADX to 15, add BB proximity tolerance, relax RSI to 45/55, add more instruments
+- **[2026-04-03] Circuit breaker enforcement** — MAX_DRAWDOWN (30%) was defined in constants but never checked anywhere. Drawdown reached 40.6%. Added pipeline-level halt + pre-trade check #9. Also enforced MAX_DAILY_LOSS (5%) halt.
+
 ---
 *Add new decisions below this line, newest first.*

@@ -14,27 +14,27 @@ function makeSnapshot(overrides: Partial<IndicatorSnapshot> = {}): IndicatorSnap
 
 describe('evaluateTrendFollowing', () => {
   // Entry signals
-  it('generates long signal on EMA crossover above with ADX > 25', () => {
+  it('generates long signal on EMA crossover above with ADX > 15', () => {
     const previous = makeSnapshot({ ema_20: 2335, ema_50: 2340 }) // EMA20 < EMA50
-    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 28 }) // EMA20 > EMA50
+    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 18 }) // EMA20 > EMA50
     const result = evaluateTrendFollowing(current, previous, false, false)
     expect(result.signal).toBe('long')
     expect(result.stopLoss).toBeCloseTo(current.close - 15 * 2.0)
     expect(result.exitSignal).toBe(false)
   })
 
-  it('generates short signal on EMA crossover below with ADX > 25', () => {
+  it('generates short signal on EMA crossover below with ADX > 15', () => {
     const previous = makeSnapshot({ ema_20: 2345, ema_50: 2340 }) // EMA20 > EMA50
-    const current = makeSnapshot({ ema_20: 2335, ema_50: 2340, adx_14: 28 }) // EMA20 < EMA50
+    const current = makeSnapshot({ ema_20: 2335, ema_50: 2340, adx_14: 18 }) // EMA20 < EMA50
     const result = evaluateTrendFollowing(current, previous, false, false)
     expect(result.signal).toBe('short')
     expect(result.stopLoss).toBeCloseTo(current.close + 15 * 2.0)
     expect(result.exitSignal).toBe(false)
   })
 
-  it('returns no signal when ADX < 20 despite crossover', () => {
+  it('returns no signal when ADX < 15 despite crossover', () => {
     const previous = makeSnapshot({ ema_20: 2335, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 17 })
+    const current = makeSnapshot({ ema_20: 2345, ema_50: 2340, adx_14: 12 })
     const result = evaluateTrendFollowing(current, previous, false, false)
     expect(result.signal).toBe('none')
     expect(result.stopLoss).toBeNull()
@@ -57,12 +57,12 @@ describe('evaluateTrendFollowing', () => {
     expect(result.signal).toBe('none')
   })
 
-  it('generates exit when ADX drops below 15 for open long', () => {
+  it('generates exit when ADX drops below 10 for open long', () => {
     const previous = makeSnapshot({ ema_20: 2345, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 13 })
+    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 8 })
     const result = evaluateTrendFollowing(current, previous, true, false)
     expect(result.exitSignal).toBe(true)
-    expect(result.exitReason).toBe('adx_below_15')
+    expect(result.exitReason).toBe('adx_below_exit')
   })
 
   it('generates exit on EMA crossover reversal for open short', () => {
@@ -73,18 +73,18 @@ describe('evaluateTrendFollowing', () => {
     expect(result.exitReason).toBe('ema_crossover_reversal')
   })
 
-  it('generates exit when ADX drops below 15 for open short', () => {
+  it('generates exit when ADX drops below 10 for open short', () => {
     const previous = makeSnapshot({ ema_20: 2335, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2334, ema_50: 2340, adx_14: 14 })
+    const current = makeSnapshot({ ema_20: 2334, ema_50: 2340, adx_14: 8 })
     const result = evaluateTrendFollowing(current, previous, false, true)
     expect(result.exitSignal).toBe(true)
-    expect(result.exitReason).toBe('adx_below_15')
+    expect(result.exitReason).toBe('adx_below_exit')
   })
 
   // No position, no signal
   it('returns no signal and no exit when nothing is happening', () => {
     const previous = makeSnapshot({ ema_20: 2345, ema_50: 2340 })
-    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 15 })
+    const current = makeSnapshot({ ema_20: 2346, ema_50: 2340, adx_14: 12 })
     const result = evaluateTrendFollowing(current, previous, false, false)
     expect(result.signal).toBe('none')
     expect(result.exitSignal).toBe(false)

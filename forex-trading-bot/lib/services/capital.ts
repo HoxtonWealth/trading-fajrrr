@@ -114,12 +114,21 @@ async function capitalFetch<T>(path: string, options?: RequestInit): Promise<T> 
 // Capital.com: 'EURUSD', 'GOLD'
 
 const EPIC_MAP: Record<string, string> = {
+  // Original 6 instruments
   EUR_USD: 'EURUSD',
   USD_JPY: 'USDJPY',
   XAU_USD: 'GOLD',
   BCO_USD: 'OIL_CRUDE',
   EUR_GBP: 'EURGBP',
   US30_USD: 'US30',
+  // Added 2026-04-03 — expand universe for more trade opportunities
+  // (see _bmad-output/analysis/trade-frequency-report.md, Win 4)
+  AUD_USD: 'AUDUSD',
+  GBP_USD: 'GBPUSD',
+  NZD_USD: 'NZDUSD',
+  XAG_USD: 'SILVER',
+  US500_USD: 'US500',
+  GER40_EUR: 'GERMANY40',
 }
 
 const REVERSE_EPIC_MAP: Record<string, string> = {}

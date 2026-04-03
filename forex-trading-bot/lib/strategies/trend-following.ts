@@ -19,15 +19,25 @@ export interface TrendSignal {
  * Trend Following Strategy — Blueprint Section 2, Layer 2a
  *
  * Entry:
- *   - Long: EMA(20) crosses above EMA(50) AND ADX(14) > 25
- *   - Short: EMA(20) crosses below EMA(50) AND ADX(14) > 25
+ *   - Long: EMA(20) crosses above EMA(50) AND ADX(14) > 15
+ *   - Short: EMA(20) crosses below EMA(50) AND ADX(14) > 15
  *
  * Exit:
  *   - EMA crossover reversal
- *   - ADX drops below 20
+ *   - ADX drops below 10
  *   - Trailing stop hit (handled externally)
  *
  * Stop: 2x ATR(14) trailing stop
+ *
+ * ── Tuning History ──────────────────────────────────────────
+ * Blueprint:  ADX entry 25, exit 20
+ * 2026-04-01: ADX entry 20, exit 15 (loosened for learning)
+ * 2026-04-03: ADX entry 15, exit 10 (data-driven: funnel analysis
+ *             showed 11 crossovers in 14 days but only 3 passed ADX>20.
+ *             Lowering to 15 captures 7 of 11 (+133%). Also fixes dead
+ *             code in transition regime where TF ran but could never fire
+ *             because regime=ADX 15-20 but TF required ADX>20.
+ *             See: _bmad-output/analysis/trade-frequency-report.md)
  */
 export function evaluateTrendFollowing(
   current: IndicatorSnapshot,
@@ -35,8 +45,8 @@ export function evaluateTrendFollowing(
   hasOpenLong: boolean,
   hasOpenShort: boolean,
 ): TrendSignal {
-  const ADX_ENTRY_THRESHOLD = 20
-  const ADX_EXIT_THRESHOLD = 15
+  const ADX_ENTRY_THRESHOLD = 15
+  const ADX_EXIT_THRESHOLD = 10
 
   const emaLongNow = current.ema_20 > current.ema_50
   const emaLongPrev = previous.ema_20 > previous.ema_50
@@ -52,7 +62,7 @@ export function evaluateTrendFollowing(
       return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'ema_crossover_reversal' }
     }
     if (current.adx_14 < ADX_EXIT_THRESHOLD) {
-      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_15' }
+      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_exit' }
     }
   }
 
@@ -61,7 +71,7 @@ export function evaluateTrendFollowing(
       return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'ema_crossover_reversal' }
     }
     if (current.adx_14 < ADX_EXIT_THRESHOLD) {
-      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_15' }
+      return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'adx_below_exit' }
     }
   }
 

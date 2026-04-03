@@ -108,6 +108,13 @@ export const INSTRUMENT_GDELT_QUERIES: Record<string, string> = {
   BCO_USD: 'oil price OPEC supply demand',
   US30_USD: 'US economy stocks fed policy',
   EUR_GBP: 'UK economy sterling Brexit BOE',
+  // Added 2026-04-03 — new instruments (Win 4)
+  AUD_USD: 'australia economy RBA commodity iron ore',
+  GBP_USD: 'UK economy BOE sterling interest rate',
+  NZD_USD: 'new zealand economy RBNZ dairy commodity',
+  XAG_USD: 'silver price industrial metals demand',
+  US500_USD: 'US stocks SP500 earnings fed policy',
+  GER40_EUR: 'germany economy ECB DAX manufacturing',
 }
 
 export async function getGeopoliticalSentiment(instrument: string): Promise<{

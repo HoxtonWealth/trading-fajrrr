@@ -12,17 +12,21 @@
 - All 5 epics (45 stories) built and deployed
 - 6 salvage features from fajrrr-trading ported (2026-04-02): Kill Switch, Trade Post-Mortem, GDELT Sentiment, Instrument Discovery, Market Screener, Scan Scheduler
 - Bot is live on Capital.com demo account (AED 4,000)
-- Trading dynamic instruments from `instrument_universe` table (seeded with 6: XAU_USD, EUR_GBP, EUR_USD, USD_JPY, BCO_USD, US30_USD)
+- Trading dynamic instruments from `instrument_universe` table (12 active: XAU_USD, EUR_GBP, EUR_USD, USD_JPY, BCO_USD, US30_USD, AUD_USD, GBP_USD, NZD_USD, XAG_USD, US500_USD, GER40_EUR)
 - Render monitor (`forex-bot-monitor/`) built but not deployed — activate for live trading
 
-## Current Tuning (loosened for learning)
-Entry thresholds lowered to generate more trades so the 4 self-learning loops can train:
-- Trend following ADX entry: 20 (was 25), exit: 15 (was 20)
-- Regime detector: trending > 20 (was 25), ranging < 15 (was 20)
-- Mean reversion RSI: 40/60 (was 30/70), ADX < 25 (was 20)
-- Agent confidence threshold: 0.3 (was 0.4)
+## Current Tuning (data-driven relaxation — 2026-04-03)
+Thresholds adjusted based on funnel analysis (`_bmad-output/analysis/trade-frequency-report.md`):
+- **Trend following ADX entry: 15** (was 20, was 25) — analysis showed 11 crossovers in 14 days but only 3 passed ADX>20. At 15, 7 pass (+133%). Also fixes dead code where TF ran in transition regime (ADX 15-20) but could never fire.
+- **Trend following ADX exit: 10** (was 15, was 20) — maintains 5-point gap between entry/exit
+- **Regime detector: UNCHANGED** — trending > 20, ranging < 15, transition 15-20
+- **Mean reversion RSI: 45/55** (was 40/60, was 30/70) — adds +15% MR signals
+- **Mean reversion BB tolerance: 0.5%** (was exact touch) — captures ~10 near-miss signals per 14 days
+- **Mean reversion ADX: UNCHANGED at < 25**
+- **Agent confidence threshold: UNCHANGED at 0.3**
+- **Instruments: 12** (was 6) — added AUD_USD, GBP_USD, NZD_USD, XAG_USD, US500_USD, GER40_EUR
 - Pipeline runs every 15 min (scan scheduler decides when to actually execute based on market session)
-- All risk limits UNCHANGED (2% per trade, 6 max positions, stops, circuit breakers)
+- All risk limits UNCHANGED (2% per trade, 6 max positions, stops, circuit breakers + drawdown + daily loss halts)
 
 ## 14 Cron Jobs
 | Cron | Schedule | What it does |
@@ -93,7 +97,7 @@ Pipeline runs: Market Screener ranks instruments → 4 analysts (Technical, Sent
 
 ## Definition of Done
 1. Code compiles with zero TypeScript errors
-2. All existing tests still pass (133 tests across 19 files)
+2. All existing tests still pass (137 tests across 19 files)
 3. New risk-critical code has tests
 4. Error handling covers API failures (Capital.com, OpenRouter, Supabase, GDELT)
 5. No hardcoded secrets in code

@@ -1,11 +1,17 @@
 import { supabase } from '@/lib/services/supabase'
 
 /** Fallback instrument list — used if DB query fails */
-const FALLBACK_INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
+const FALLBACK_INSTRUMENTS = [
+  'XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD',
+  // Added 2026-04-03 — see _bmad-output/analysis/trade-frequency-report.md
+  'AUD_USD', 'GBP_USD', 'NZD_USD', 'XAG_USD', 'US500_USD', 'GER40_EUR',
+]
 
 export const FRIENDLY_NAMES_FALLBACK: Record<string, string> = {
   XAU_USD: 'Gold', EUR_GBP: 'EUR/GBP', EUR_USD: 'EUR/USD',
   USD_JPY: 'USD/JPY', BCO_USD: 'Oil', US30_USD: 'Dow Jones',
+  AUD_USD: 'AUD/USD', GBP_USD: 'GBP/USD', NZD_USD: 'NZD/USD',
+  XAG_USD: 'Silver', US500_USD: 'S&P 500', GER40_EUR: 'DAX',
 }
 
 /**
