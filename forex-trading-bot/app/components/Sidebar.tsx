@@ -32,9 +32,9 @@ export function Sidebar() {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[52px] bg-bg-surface border-r border-border/50 flex flex-col items-center pt-3 z-50">
+    <aside style={{ width: 52 }} className="fixed left-0 top-0 bottom-0 bg-bg-surface border-r border-border/50 flex flex-col items-center pt-3 z-50">
       {/* Logo */}
-      <div className="w-[22px] h-[22px] rounded-[10px] bg-green flex items-center justify-center mb-3">
+      <div style={{ width: 22, height: 22, borderRadius: 10 }} className="bg-green flex items-center justify-center mb-3">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} className="w-3 h-3">
           <polyline points="4 16 8 12 12 14 20 6" />
         </svg>

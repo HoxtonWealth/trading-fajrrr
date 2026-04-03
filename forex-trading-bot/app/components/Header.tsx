@@ -77,7 +77,7 @@ export function Header() {
   const isKillActive = killSwitch === 'active'
 
   return (
-    <header className="h-[52px] border-b border-border/50 px-7 flex items-center justify-between bg-bg-surface">
+    <header style={{ height: 52 }} className="border-b border-border/50 px-7 flex items-center justify-between bg-bg-surface">
       {/* Left: equity stats */}
       <div className="flex items-center gap-6">
         <StatItem label="Equity" value={fmtCurrency(equity?.equity)} />

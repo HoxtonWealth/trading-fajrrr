@@ -16,7 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-bg-page text-text-primary font-sans">
         <Sidebar />
-        <div className="ml-[52px] min-h-screen flex flex-col">
+        <div style={{ marginLeft: 52 }} className="min-h-screen flex flex-col">
           <Header />
           <main className="flex-1">{children}</main>
         </div>

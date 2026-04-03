@@ -173,7 +173,7 @@ export default function MarketsPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-52px)]">
+    <div style={{ minHeight: 'calc(100vh - 52px)' }} className="flex">
       {/* Main column */}
       <div className="flex-1 p-7">
         <h1 className="font-serif text-[18px] font-semibold text-text-primary mb-5">Markets</h1>
@@ -238,7 +238,7 @@ export default function MarketsPage() {
       </div>
 
       {/* Right panel */}
-      <aside className="w-[320px] bg-bg-warm border-l border-border-light p-5 flex flex-col gap-6">
+      <aside style={{ width: 320 }} className="bg-bg-warm border-l border-border-light p-5 flex flex-col gap-6 shrink-0">
         {/* Morning Briefing */}
         <section>
           <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Morning Briefing</h3>
