@@ -22,37 +22,16 @@ export function KillSwitchButton({ initialState }: { initialState: string }) {
   const isActive = state === 'active'
 
   return (
-    <div style={{
-      padding: '16px',
-      background: isActive ? '#fee' : '#efe',
-      border: `2px solid ${isActive ? '#c00' : '#0a0'}`,
-      borderRadius: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '1rem',
-    }}>
-      <div>
-        <strong style={{ fontSize: '1.1rem' }}>
-          Kill Switch: {isActive ? 'ACTIVE (Trading Halted)' : 'Inactive (Trading Normal)'}
-        </strong>
-      </div>
-      <button
-        onClick={toggle}
-        disabled={loading}
-        style={{
-          padding: '8px 20px',
-          background: isActive ? '#0a0' : '#c00',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: loading ? 'wait' : 'pointer',
-          fontWeight: 'bold',
-          fontSize: '0.95rem',
-        }}
-      >
-        {loading ? '...' : isActive ? 'Resume Trading' : 'HALT TRADING'}
-      </button>
-    </div>
+    <button
+      onClick={toggle}
+      disabled={loading}
+      className={`w-full font-sans text-[12px] font-semibold py-2 px-3 rounded-lg border transition-colors cursor-pointer ${
+        isActive
+          ? 'bg-green-bg border-green text-green hover:bg-green/10'
+          : 'bg-red-bg border-red text-red hover:bg-red/10'
+      } ${loading ? 'opacity-50 cursor-wait' : ''}`}
+    >
+      {loading ? '...' : isActive ? 'Resume Trading' : 'Halt Trading'}
+    </button>
   )
 }

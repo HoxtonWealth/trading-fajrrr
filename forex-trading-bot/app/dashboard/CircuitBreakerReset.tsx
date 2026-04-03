@@ -24,13 +24,7 @@ export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: numb
 
   if (resetAt) {
     return (
-      <div style={{
-        padding: '16px',
-        background: '#efe',
-        border: '2px solid #0a0',
-        borderRadius: '8px',
-        marginBottom: '1rem',
-      }}>
+      <div className="bg-green-bg border border-green rounded-lg p-4 text-[13px] font-sans text-green">
         <strong>Circuit breaker reset.</strong> Drawdown baseline will recalculate on next equity snapshot (~5 min).
       </div>
     )
@@ -39,38 +33,21 @@ export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: numb
   if (!isTriggered) return null
 
   return (
-    <div style={{
-      padding: '16px',
-      background: '#fff3f3',
-      border: '2px solid #c00',
-      borderRadius: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '1rem',
-    }}>
+    <div className="bg-red-bg border border-red rounded-lg p-4 flex items-center justify-between">
       <div>
-        <strong style={{ fontSize: '1.1rem', color: '#c00' }}>
+        <div className="font-sans text-[14px] font-semibold text-red">
           Circuit Breaker ACTIVE — Drawdown {currentDrawdown.toFixed(1)}% exceeds 30% limit
-        </strong>
-        <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px' }}>
+        </div>
+        <div className="font-sans text-[12px] text-text-muted mt-1">
           Pipeline halted. Close losing positions on Capital.com, then reset to resume.
         </div>
       </div>
       <button
         onClick={reset}
         disabled={loading}
-        style={{
-          padding: '8px 20px',
-          background: '#0a0',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: loading ? 'wait' : 'pointer',
-          fontWeight: 'bold',
-          fontSize: '0.95rem',
-          whiteSpace: 'nowrap',
-        }}
+        className={`font-sans text-[12px] font-semibold py-2 px-4 rounded-lg bg-green text-white hover:bg-green/90 shrink-0 ml-4 cursor-pointer ${
+          loading ? 'opacity-50 cursor-wait' : ''
+        }`}
       >
         {loading ? '...' : 'Reset & Resume'}
       </button>

@@ -66,6 +66,7 @@ export interface AgentScorecardRow {
   win_rate: number
   avg_pnl: number
   total_pnl: number
+  weight: number
   last_updated: string
   created_at: string
 }

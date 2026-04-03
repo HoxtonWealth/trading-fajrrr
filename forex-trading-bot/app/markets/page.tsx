@@ -1,15 +1,37 @@
-import { getSupabase } from '@/lib/services/supabase'
-import type { MarketAssetRow, MarketPriceRow, MarketAnalysisRow, NewsCacheRow } from '@/lib/types/database'
-import { RefreshButton } from './refresh-button'
+'use client'
 
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase-browser'
 
-interface AssetWithPrice extends MarketAssetRow {
+interface MarketAsset {
+  id: string
+  name: string
+  symbol: string
+  category: string
+  enabled: boolean
+}
+
+interface MarketPrice {
+  asset_id: string
+  price: number
+  change_24h_pct: number | null
+  change_1w_pct: number | null
+  change_1q_pct: number | null
+}
+
+interface AssetWithPrice extends MarketAsset {
   price: number | null
   change_24h_pct: number | null
   change_1w_pct: number | null
   change_1q_pct: number | null
+}
+
+interface MarketAnalysis {
+  analysis_date: string
+  market_summary: string | null
+  key_movers: Array<{ instrument: string; change: string; explanation: string }> | null
+  geopolitical_watch: string | null
+  week_ahead: string | null
 }
 
 interface EconomicEvent {
@@ -29,49 +51,108 @@ const CATEGORY_LABELS: Record<string, string> = {
   volatility: 'Volatility',
 }
 
-async function getData() {
-  const supabase = getSupabase()
-
-  const [assetsRes, pricesRes, analysisRes, newsRes, eventsRes] = await Promise.all([
-    supabase.from('market_assets').select('*').eq('enabled', true).order('category'),
-    supabase.from('market_prices').select('*').order('recorded_at', { ascending: false }),
-    supabase.from('market_analyses').select('*').order('analysis_date', { ascending: false }).limit(1).single(),
-    supabase.from('news_cache').select('*').eq('category', 'geopolitical').order('fetched_at', { ascending: false }).limit(10),
-    supabase.from('economic_events').select('*').gte('event_time', new Date().toISOString()).order('event_time').limit(15),
-  ])
-
-  const allAssets = (assetsRes.data ?? []) as MarketAssetRow[]
-  const allPrices = (pricesRes.data ?? []) as MarketPriceRow[]
-
-  // Match latest price to each asset
-  const priceMap = new Map<string, MarketPriceRow>()
-  for (const p of allPrices) {
-    if (!priceMap.has(p.asset_id)) {
-      priceMap.set(p.asset_id, p)
-    }
-  }
-
-  const assets: AssetWithPrice[] = allAssets.map(a => {
-    const p = priceMap.get(a.id)
-    return {
-      ...a,
-      price: p ? Number(p.price) : null,
-      change_24h_pct: p?.change_24h_pct != null ? Number(p.change_24h_pct) : null,
-      change_1w_pct: p?.change_1w_pct != null ? Number(p.change_1w_pct) : null,
-      change_1q_pct: p?.change_1q_pct != null ? Number(p.change_1q_pct) : null,
-    }
-  })
-
-  return {
-    assets,
-    analysis: analysisRes.data as MarketAnalysisRow | null,
-    geoNews: (newsRes.data ?? []) as NewsCacheRow[],
-    events: (eventsRes.data ?? []) as EconomicEvent[],
-  }
+function pctColor(v: number | null) {
+  if (v == null) return 'text-text-muted'
+  return v > 0 ? 'text-green' : v < 0 ? 'text-red' : 'text-text-muted'
 }
 
-export default async function MarketsPage() {
-  const { assets, analysis, geoNews, events } = await getData()
+function fmtPct(v: number | null) {
+  if (v == null) return '—'
+  return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`
+}
+
+function formatPrice(price: number, category: string) {
+  if (category === 'currencies') return price.toFixed(4)
+  if (category === 'crypto') return price.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  if (category === 'bonds') return price.toFixed(3) + '%'
+  return price.toLocaleString('en-US', { maximumFractionDigits: 2 })
+}
+
+function formatEventDate(dateStr: string) {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+}
+
+export default function MarketsPage() {
+  const [assets, setAssets] = useState<AssetWithPrice[]>([])
+  const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null)
+  const [events, setEvents] = useState<EconomicEvent[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchAll() {
+      const [assetsRes, pricesRes, analysisRes, eventsRes] = await Promise.all([
+        supabase.from('market_assets').select('*').eq('enabled', true).order('category'),
+        supabase.from('market_prices').select('*').order('recorded_at', { ascending: false }),
+        supabase.from('market_analyses').select('*').order('analysis_date', { ascending: false }).limit(1).single(),
+        supabase.from('economic_events').select('*').gte('event_time', new Date().toISOString()).order('event_time').limit(15),
+      ])
+
+      const allAssets = (assetsRes.data ?? []) as MarketAsset[]
+      const allPrices = (pricesRes.data ?? []) as MarketPrice[]
+
+      const priceMap = new Map<string, MarketPrice>()
+      for (const p of allPrices) {
+        if (!priceMap.has(p.asset_id)) priceMap.set(p.asset_id, p)
+      }
+
+      setAssets(allAssets.map(a => {
+        const p = priceMap.get(a.id)
+        return {
+          ...a,
+          price: p ? Number(p.price) : null,
+          change_24h_pct: p?.change_24h_pct != null ? Number(p.change_24h_pct) : null,
+          change_1w_pct: p?.change_1w_pct != null ? Number(p.change_1w_pct) : null,
+          change_1q_pct: p?.change_1q_pct != null ? Number(p.change_1q_pct) : null,
+        }
+      }))
+
+      if (analysisRes.data) setAnalysis(analysisRes.data as MarketAnalysis)
+      setEvents((eventsRes.data ?? []) as EconomicEvent[])
+      setLoading(false)
+    }
+    fetchAll()
+
+    // Realtime on market_prices
+    const priceChannel = supabase
+      .channel('markets-prices')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'market_prices' }, () => {
+        // Re-fetch prices on any change
+        Promise.all([
+          supabase.from('market_assets').select('*').eq('enabled', true).order('category'),
+          supabase.from('market_prices').select('*').order('recorded_at', { ascending: false }),
+        ]).then(([assetsRes, pricesRes]) => {
+          const allAssets = (assetsRes.data ?? []) as MarketAsset[]
+          const allPrices = (pricesRes.data ?? []) as MarketPrice[]
+          const priceMap = new Map<string, MarketPrice>()
+          for (const p of allPrices) {
+            if (!priceMap.has(p.asset_id)) priceMap.set(p.asset_id, p)
+          }
+          setAssets(allAssets.map(a => {
+            const p = priceMap.get(a.id)
+            return {
+              ...a,
+              price: p ? Number(p.price) : null,
+              change_24h_pct: p?.change_24h_pct != null ? Number(p.change_24h_pct) : null,
+              change_1w_pct: p?.change_1w_pct != null ? Number(p.change_1w_pct) : null,
+              change_1q_pct: p?.change_1q_pct != null ? Number(p.change_1q_pct) : null,
+            }
+          }))
+        })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(priceChannel)
+    }
+  }, [])
+
+  // Top 4 movers by absolute 24h change
+  const topMovers = [...assets]
+    .filter(a => a.change_24h_pct != null)
+    .sort((a, b) => Math.abs(b.change_24h_pct!) - Math.abs(a.change_24h_pct!))
+    .slice(0, 4)
 
   const grouped = CATEGORY_ORDER.map(cat => ({
     category: cat,
@@ -79,203 +160,153 @@ export default async function MarketsPage() {
     items: assets.filter(a => a.category === cat),
   })).filter(g => g.items.length > 0)
 
-  return (
-    <main style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1200px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div>
-          <h1 style={{ margin: 0 }}>Global Markets</h1>
-          <p style={{ color: '#666', margin: '4px 0 0 0' }}>
-            Daily snapshot — 28 instruments across 6 asset classes
-            {' · '}
-            <a href="/dashboard" style={{ color: '#4a9' }}>← Dashboard</a>
-          </p>
+  if (loading) {
+    return (
+      <div className="p-7">
+        <div className="skeleton h-6 w-40 mb-6" />
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-lg" />)}
         </div>
-        <RefreshButton />
+        <div className="skeleton h-96 rounded-lg" />
       </div>
+    )
+  }
 
-      {/* Asset Grid */}
-      <section style={{ marginTop: '1.5rem' }}>
-        <h2>Asset Grid</h2>
+  return (
+    <div className="flex min-h-[calc(100vh-52px)]">
+      {/* Main column */}
+      <div className="flex-1 p-7">
+        <h1 className="font-serif text-[18px] font-semibold text-text-primary mb-5">Markets</h1>
+
+        {/* Ticker cards — top 4 movers */}
+        {topMovers.length > 0 && (
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            {topMovers.map((a) => (
+              <div key={a.id} className="bg-bg-warm border border-border-light rounded-lg px-3.5 py-3">
+                <div className="font-sans text-[11px] font-medium text-text-muted uppercase">{a.symbol}</div>
+                <div className="font-serif text-[18px] font-semibold text-text-primary mt-1">
+                  {a.price != null ? formatPrice(a.price, a.category) : '—'}
+                </div>
+                <div className={`font-sans text-[12px] font-medium mt-0.5 ${pctColor(a.change_24h_pct)}`}>
+                  {fmtPct(a.change_24h_pct)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Asset grid */}
         {grouped.length === 0 ? (
-          <p style={empty}>No price data yet. Click Refresh Data to populate.</p>
+          <p className="font-serif italic text-text-muted text-center py-8">No price data yet.</p>
         ) : (
           grouped.map(group => (
-            <div key={group.category} style={{ marginBottom: '1.5rem' }}>
-              <h3 style={{ color: '#888', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '6px' }}>
-                {group.label}
-              </h3>
-              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.85rem' }}>
+            <section key={group.category} className="mb-6">
+              <div className="section-label mb-2">{group.label}</div>
+              <table className="w-full text-[13px]">
                 <thead>
-                  <tr>
-                    {['Instrument', 'Price', '24h', '1W', '1Q'].map(h => (
-                      <th key={h} style={{ ...td, fontWeight: 'bold', background: '#f0f0f0', textAlign: h === 'Instrument' ? 'left' : 'right' }}>
-                        {h}
-                      </th>
-                    ))}
+                  <tr className="border-b border-border">
+                    <th className="text-left font-sans text-[11px] font-medium text-text-muted py-2 px-3">Instrument</th>
+                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">Price</th>
+                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">24h</th>
+                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">1W</th>
+                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">1Q</th>
                   </tr>
                 </thead>
                 <tbody>
                   {group.items.map(asset => (
-                    <tr key={asset.id}>
-                      <td style={td}>{asset.name}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>
-                        {asset.price !== null ? formatPrice(asset.price, asset.category) : '—'}
+                    <tr key={asset.id} className="border-b border-border-light hover:bg-bg-warm/50">
+                      <td className="py-2 px-3 font-serif font-semibold text-[14px]">{asset.name}</td>
+                      <td className="py-2 px-3 font-sans text-right">
+                        {asset.price != null ? formatPrice(asset.price, asset.category) : '—'}
                       </td>
-                      <td style={{ ...td, textAlign: 'right', color: pctColor(asset.change_24h_pct) }}>
+                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_24h_pct)}`}>
                         {fmtPct(asset.change_24h_pct)}
                       </td>
-                      <td style={{ ...td, textAlign: 'right', color: pctColor(asset.change_1w_pct) }}>
+                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_1w_pct)}`}>
                         {fmtPct(asset.change_1w_pct)}
                       </td>
-                      <td style={{ ...td, textAlign: 'right', color: pctColor(asset.change_1q_pct) }}>
+                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_1q_pct)}`}>
                         {fmtPct(asset.change_1q_pct)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
+            </section>
           ))
         )}
-      </section>
+      </div>
 
-      {/* AI Morning Briefing */}
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Morning Briefing</h2>
-        {analysis ? (
-          <div style={card}>
-            <p style={{ color: '#999', fontSize: '0.8rem', marginTop: 0 }}>{analysis.analysis_date}</p>
+      {/* Right panel */}
+      <aside className="w-[320px] bg-bg-warm border-l border-border-light p-5 flex flex-col gap-6">
+        {/* Morning Briefing */}
+        <section>
+          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Morning Briefing</h3>
+          {analysis ? (
+            <div className="flex flex-col gap-4">
+              <div className="font-sans text-[11px] text-text-muted">{analysis.analysis_date}</div>
 
-            <h3 style={h3}>Summary</h3>
-            <p style={bodyText}>{analysis.market_summary}</p>
-
-            {analysis.key_movers && (analysis.key_movers as Array<{ instrument: string; change: string; explanation: string }>).length > 0 && (
-              <>
-                <h3 style={{ ...h3, marginTop: '1rem' }}>Key Movers</h3>
-                <ul style={{ paddingLeft: '1.2rem', color: '#444', lineHeight: 1.6 }}>
-                  {(analysis.key_movers as Array<{ instrument: string; change: string; explanation: string }>).map((m, i) => (
-                    <li key={i}><strong>{m.instrument}</strong> ({m.change}) — {m.explanation}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            <h3 style={{ ...h3, marginTop: '1rem' }}>Geopolitical Watch</h3>
-            <p style={bodyText}>{analysis.geopolitical_watch}</p>
-
-            <h3 style={{ ...h3, marginTop: '1rem' }}>Week Ahead</h3>
-            <p style={bodyText}>{analysis.week_ahead}</p>
-          </div>
-        ) : (
-          <p style={empty}>No AI analysis yet. Click Refresh Data to generate.</p>
-        )}
-      </section>
-
-      {/* Geopolitical Headlines */}
-      <section style={{ marginTop: '2rem' }}>
-        <h2>Geopolitical Headlines</h2>
-        {geoNews.length > 0 ? (
-          <div style={card}>
-            {geoNews.map((n, i) => (
-              <div key={n.id} style={{ padding: '6px 0', borderBottom: i < geoNews.length - 1 ? '1px solid #eee' : 'none' }}>
-                <a href={n.url ?? '#'} target="_blank" rel="noopener noreferrer" style={{ color: '#2a7', textDecoration: 'none' }}>
-                  {n.title}
-                </a>
-                <span style={{ color: '#999', fontSize: '0.8rem', marginLeft: '8px' }}>
-                  {n.source} · {timeAgo(n.published_at || n.fetched_at)}
-                </span>
+              <div>
+                <div className="section-label mb-1">Summary</div>
+                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.market_summary}</p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p style={empty}>No geopolitical headlines yet. The GDELT cron will populate this.</p>
-        )}
-      </section>
 
-      {/* Economic Calendar */}
-      <section style={{ marginTop: '2rem', marginBottom: '3rem' }}>
-        <h2>Economic Calendar</h2>
-        {events.length > 0 ? (
-          <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.85rem' }}>
-            <thead>
-              <tr>
-                {['Event', 'Country', 'Impact', 'Date/Time'].map(h => (
-                  <th key={h} style={{ ...td, fontWeight: 'bold', background: '#f0f0f0' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+              {analysis.key_movers && analysis.key_movers.length > 0 && (
+                <div>
+                  <div className="section-label mb-1">Key Movers</div>
+                  <div className="flex flex-col gap-1.5">
+                    {analysis.key_movers.map((m, i) => (
+                      <div key={i} className="font-serif text-[13px] text-text-mid leading-relaxed">
+                        <span className="font-semibold text-text-primary">{m.instrument}</span>{' '}
+                        <span className={m.change.startsWith('+') ? 'text-green' : m.change.startsWith('-') ? 'text-red' : ''}>
+                          ({m.change})
+                        </span>{' '}
+                        — {m.explanation}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="section-label mb-1">Geopolitical Watch</div>
+                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.geopolitical_watch}</p>
+              </div>
+
+              <div>
+                <div className="section-label mb-1">Week Ahead</div>
+                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.week_ahead}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No analysis yet</p>
+          )}
+        </section>
+
+        {/* Economic Calendar */}
+        <section>
+          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Economic Calendar</h3>
+          {events.length === 0 ? (
+            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No upcoming events</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
               {events.map((e, i) => (
-                <tr key={i}>
-                  <td style={td}>{e.event_name}</td>
-                  <td style={td}>{e.country}</td>
-                  <td style={td}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.8rem',
-                      background: e.impact === 'high' ? '#ffe0e0' : '#fff3d0',
-                      color: e.impact === 'high' ? '#c33' : '#a80',
-                    }}>
-                      {e.impact}
-                    </span>
-                  </td>
-                  <td style={td}>{new Date(e.event_time).toLocaleString()}</td>
-                </tr>
+                <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border-light">
+                  <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
+                    e.impact === 'high' ? 'bg-red' : e.impact === 'medium' ? 'bg-amber' : 'bg-green'
+                  }`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-sans text-[12px] font-medium text-text-primary">{e.event_name}</div>
+                    <div className="font-sans text-[11px] text-text-muted">
+                      {e.country} · {formatEventDate(e.event_time)}
+                    </div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={empty}>No upcoming economic events.</p>
-        )}
-      </section>
-    </main>
+            </div>
+          )}
+        </section>
+      </aside>
+    </div>
   )
-}
-
-// --- Styles ---
-
-const td: React.CSSProperties = {
-  border: '1px solid #ddd',
-  padding: '6px 10px',
-  textAlign: 'left',
-}
-
-const card: React.CSSProperties = {
-  padding: '14px 18px',
-  background: '#f8f9fa',
-  border: '1px solid #e0e0e0',
-  borderRadius: '8px',
-}
-
-const h3: React.CSSProperties = { fontSize: '0.95rem', marginBottom: '6px' }
-const bodyText: React.CSSProperties = { color: '#444', lineHeight: 1.5 }
-const empty: React.CSSProperties = { color: '#999', fontStyle: 'italic' }
-
-// --- Formatters ---
-
-function pctColor(v: number | null): string {
-  if (v === null) return '#999'
-  return v > 0 ? '#2a7' : v < 0 ? '#c33' : '#666'
-}
-
-function fmtPct(v: number | null): string {
-  if (v === null) return '—'
-  return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`
-}
-
-function formatPrice(price: number, category: string): string {
-  if (category === 'currencies') return price.toFixed(4)
-  if (category === 'crypto') return price.toLocaleString('en-US', { maximumFractionDigits: 2 })
-  if (category === 'bonds') return price.toFixed(3) + '%'
-  return price.toLocaleString('en-US', { maximumFractionDigits: 2 })
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const hours = Math.floor(diff / 3600000)
-  if (hours < 1) return `${Math.floor(diff / 60000)}m ago`
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
 }
