@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 export function KillSwitchButton({ initialState }: { initialState: string }) {
   const [state, setState] = useState(initialState)
   const [loading, setLoading] = useState(false)
@@ -25,11 +27,21 @@ export function KillSwitchButton({ initialState }: { initialState: string }) {
     <button
       onClick={toggle}
       disabled={loading}
-      className={`w-full font-sans text-[12px] font-semibold py-2 px-3 rounded-lg border transition-colors cursor-pointer ${
-        isActive
-          ? 'bg-green-bg border-green text-green hover:bg-green/10'
-          : 'bg-red-bg border-red text-red hover:bg-red/10'
-      } ${loading ? 'opacity-50 cursor-wait' : ''}`}
+      style={{
+        width: '100%',
+        fontFamily: FONT_SANS,
+        fontSize: 13,
+        fontWeight: 600,
+        padding: '10px 16px',
+        borderRadius: 8,
+        border: `1.5px solid ${isActive ? 'var(--color-green)' : 'var(--color-red)'}`,
+        backgroundColor: isActive ? 'var(--color-green-bg)' : 'var(--color-red-bg)',
+        color: isActive ? 'var(--color-green)' : 'var(--color-red)',
+        cursor: loading ? 'wait' : 'pointer',
+        opacity: loading ? 0.5 : 1,
+        transition: 'all 0.15s ease',
+        letterSpacing: 0.3,
+      }}
     >
       {loading ? '...' : isActive ? 'Resume Trading' : 'Halt Trading'}
     </button>

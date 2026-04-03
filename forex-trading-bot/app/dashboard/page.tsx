@@ -5,6 +5,9 @@ import { supabase } from '@/lib/supabase-browser'
 import { KillSwitchButton } from './KillSwitchButton'
 import { CircuitBreakerReset } from './CircuitBreakerReset'
 
+const FONT_SERIF = "Georgia, 'Times New Roman', serif"
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 interface Equity {
   equity: number
   balance: number
@@ -65,6 +68,20 @@ function timeAgo(dateStr: string) {
   const hrs = Math.floor(mins / 60)
   if (hrs < 24) return `${hrs}h ago`
   return `${Math.floor(hrs / 24)}d ago`
+}
+
+function formatStateValue(key: string, value: string): string {
+  // Truncate ISO timestamps or long values for display
+  if (key.includes('_at') || key.includes('date')) {
+    try {
+      const d = new Date(value)
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+          ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      }
+    } catch { /* use raw value */ }
+  }
+  return value
 }
 
 export default function Dashboard() {
@@ -133,19 +150,19 @@ export default function Dashboard() {
   const fmtPct = (v: number | null | undefined) =>
     v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—'
 
-  const pnlColor = (v: number | null | undefined) =>
-    v == null ? 'text-text-muted' : Number(v) > 0 ? 'text-green' : Number(v) < 0 ? 'text-red' : 'text-text-muted'
+  const pnlColorVar = (v: number | null | undefined) =>
+    v == null ? 'var(--color-text-muted)' : Number(v) > 0 ? 'var(--color-green)' : Number(v) < 0 ? 'var(--color-red)' : 'var(--color-text-muted)'
 
   const killSwitchValue = systemState.find((s) => s.key === 'kill_switch')?.value ?? 'inactive'
 
   if (loading) {
     return (
-      <div className="p-7">
-        <div className="skeleton h-6 w-40 mb-6" />
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-lg" />)}
+      <div style={{ padding: 28 }}>
+        <div className="skeleton" style={{ height: 24, width: 160, marginBottom: 24 }} />
+        <div className="grid grid-cols-4" style={{ gap: 16, marginBottom: 32 }}>
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 8 }} />)}
         </div>
-        <div className="skeleton h-64 rounded-lg" />
+        <div className="skeleton" style={{ height: 256, borderRadius: 10 }} />
       </div>
     )
   }
@@ -156,53 +173,83 @@ export default function Dashboard() {
   return (
     <div style={{ minHeight: 'calc(100vh - 52px)' }} className="flex">
       {/* Main column */}
-      <div className="flex-1 p-7">
+      <div className="flex-1" style={{ padding: 28 }}>
         {/* Page title */}
-        <h1 className="font-serif text-[18px] font-semibold text-text-primary mb-5">Dashboard</h1>
+        <h1
+          style={{
+            fontFamily: FONT_SERIF,
+            fontSize: 18,
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+            marginBottom: 20,
+          }}
+        >
+          Dashboard
+        </h1>
 
         {/* Ticker cards */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-4" style={{ gap: 16, marginBottom: 32 }}>
           <TickerCard label="Equity" value={fmtCurrency(equity?.equity)} />
           <TickerCard label="Balance" value={fmtCurrency(equity?.balance)} />
           <TickerCard
             label="Daily P&L"
             value={fmtPct(equity?.daily_pnl)}
-            valueClass={pnlColor(equity?.daily_pnl)}
+            valueColor={pnlColorVar(equity?.daily_pnl)}
           />
           <TickerCard
             label="Drawdown"
             value={fmtPct(equity?.drawdown_percent ? -Math.abs(equity.drawdown_percent) : null)}
-            valueClass={
+            valueColor={
               equity?.drawdown_percent != null && equity.drawdown_percent > 10
-                ? 'text-red'
-                : 'text-text-muted'
+                ? 'var(--color-red)'
+                : 'var(--color-text-muted)'
             }
           />
         </div>
 
         {/* Safety controls */}
-        <div className="mb-8">
+        <div style={{ marginBottom: 32 }}>
           <CircuitBreakerReset currentDrawdown={equity ? Number(equity.drawdown_percent) : 0} />
         </div>
 
         {/* Recent Trades */}
-        <section className="mb-8">
-          <h2 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Recent Trades</h2>
+        <section className="content-card" style={{ marginBottom: 28 }}>
+          <h2
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 16,
+            }}
+          >
+            Recent Trades
+          </h2>
 
           {trades.length === 0 ? (
-            <p className="font-serif italic text-text-muted text-center py-8">No trades yet</p>
+            <p
+              style={{
+                fontFamily: FONT_SERIF,
+                fontStyle: 'italic',
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                padding: '32px 0',
+              }}
+            >
+              No trades yet
+            </p>
           ) : (
             <>
               {openTrades.length > 0 && (
                 <>
-                  <div className="section-label mb-2">Open</div>
-                  <TradesTable trades={openTrades} fmtCurrency={fmtCurrency} pnlColor={pnlColor} />
+                  <div className="section-label" style={{ marginBottom: 8 }}>Open</div>
+                  <TradesTable trades={openTrades} fmtCurrency={fmtCurrency} pnlColorVar={pnlColorVar} />
                 </>
               )}
               {closedTrades.length > 0 && (
                 <>
-                  <div className="section-label mb-2 mt-4">Closed</div>
-                  <TradesTable trades={closedTrades} fmtCurrency={fmtCurrency} pnlColor={pnlColor} />
+                  <div className="section-label" style={{ marginBottom: 8, marginTop: openTrades.length > 0 ? 20 : 0 }}>Closed</div>
+                  <TradesTable trades={closedTrades} fmtCurrency={fmtCurrency} pnlColorVar={pnlColorVar} />
                 </>
               )}
             </>
@@ -210,32 +257,50 @@ export default function Dashboard() {
         </section>
 
         {/* Agent Scorecards */}
-        <section>
-          <h2 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Agent Scorecards</h2>
+        <section className="content-card">
+          <h2
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 16,
+            }}
+          >
+            Agent Scorecards
+          </h2>
           {scorecards.length === 0 ? (
-            <p className="font-serif italic text-text-muted text-center py-8">No scorecard data yet</p>
+            <p
+              style={{
+                fontFamily: FONT_SERIF,
+                fontStyle: 'italic',
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                padding: '32px 0',
+              }}
+            >
+              No scorecard data yet
+            </p>
           ) : (
-            <table className="w-full text-[13px]">
+            <table className="editorial-table">
               <thead>
-                <tr className="border-b border-border">
+                <tr>
                   {['Agent', 'Instrument', 'Trades', 'Win Rate', 'Avg P&L', 'Weight'].map((h) => (
-                    <th key={h} className="text-left font-sans text-[11px] font-medium text-text-muted py-2 px-3">
-                      {h}
-                    </th>
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {scorecards.map((s) => (
-                  <tr key={s.id} className="border-b border-border-light hover:bg-bg-warm/50">
-                    <td className="py-2 px-3 font-sans">{s.agent}</td>
-                    <td className="py-2 px-3 font-serif font-semibold text-[14px]">{s.instrument}</td>
-                    <td className="py-2 px-3 font-sans">{s.total_trades}</td>
-                    <td className="py-2 px-3 font-sans">{(Number(s.win_rate) * 100).toFixed(1)}%</td>
-                    <td className={`py-2 px-3 font-sans ${pnlColor(s.avg_pnl)}`}>
+                  <tr key={s.id}>
+                    <td style={{ fontFamily: FONT_SANS }}>{s.agent}</td>
+                    <td className="instrument-cell" style={{ fontFamily: FONT_SERIF, fontWeight: 600, fontSize: 14 }}>{s.instrument}</td>
+                    <td style={{ fontFamily: FONT_SANS }}>{s.total_trades}</td>
+                    <td style={{ fontFamily: FONT_SANS }}>{(Number(s.win_rate) * 100).toFixed(1)}%</td>
+                    <td style={{ fontFamily: FONT_SANS, color: pnlColorVar(s.avg_pnl) }}>
                       {fmtCurrency(s.avg_pnl)}
                     </td>
-                    <td className="py-2 px-3 font-sans">{Number(s.weight).toFixed(2)}</td>
+                    <td style={{ fontFamily: FONT_SANS }}>{Number(s.weight).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -245,46 +310,135 @@ export default function Dashboard() {
       </div>
 
       {/* Right panel */}
-      <aside style={{ width: 320 }} className="bg-bg-warm border-l border-border-light p-5 flex flex-col gap-6 shrink-0">
+      <aside
+        style={{
+          width: 320,
+          backgroundColor: 'var(--color-bg-warm)',
+          borderLeft: '0.5px solid var(--color-border-light)',
+          padding: 20,
+          overflowY: 'auto',
+        }}
+        className="flex flex-col shrink-0"
+      >
         {/* Bot Status */}
-        <section>
-          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Bot Status</h3>
-          <div className="flex flex-col gap-2">
+        <section className="panel-card" style={{ marginBottom: 20 }}>
+          <h3
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+            }}
+          >
+            Bot Status
+          </h3>
+          <div className="flex flex-col" style={{ gap: 0 }}>
             {systemState.map((s) => (
-              <div key={s.key} className="flex justify-between items-center py-1.5 border-b border-border-light">
-                <span className="font-sans text-[12px] text-text-muted">{s.key}</span>
-                <span className={`font-sans text-[12px] font-medium ${
-                  s.key === 'kill_switch' && s.value === 'active' ? 'text-red' : 'text-text-primary'
-                }`}>
-                  {s.value}
+              <div
+                key={s.key}
+                className="flex justify-between items-center"
+                style={{
+                  padding: '8px 0',
+                  borderBottom: '0.5px solid var(--color-border-light)',
+                  gap: 8,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: FONT_SANS,
+                    fontSize: 12,
+                    color: 'var(--color-text-muted)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {s.key}
+                </span>
+                <span
+                  style={{
+                    fontFamily: FONT_SANS,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: s.key === 'kill_switch' && s.value === 'active' ? 'var(--color-red)' : 'var(--color-text-primary)',
+                    textAlign: 'right',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    maxWidth: 160,
+                  }}
+                  title={s.value}
+                >
+                  {formatStateValue(s.key, s.value)}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-3">
+          <div style={{ marginTop: 14 }}>
             <KillSwitchButton initialState={killSwitchValue} />
           </div>
         </section>
 
         {/* Active Signals */}
-        <section>
-          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Active Signals</h3>
+        <section className="panel-card" style={{ marginBottom: 20 }}>
+          <h3
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+            }}
+          >
+            Active Signals
+          </h3>
           {signals.length === 0 ? (
-            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No active signals</p>
+            <p
+              style={{
+                fontFamily: FONT_SERIF,
+                fontStyle: 'italic',
+                fontSize: 13,
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                padding: '16px 0',
+              }}
+            >
+              No active signals
+            </p>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col" style={{ gap: 10 }}>
               {signals.map((s) => (
-                <div key={s.id} className="bg-bg-surface border border-border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-sans text-[11px] font-medium text-text-muted uppercase">
+                <div
+                  key={s.id}
+                  style={{
+                    backgroundColor: 'var(--color-bg-warm)',
+                    border: '0.5px solid var(--color-border-light)',
+                    borderRadius: 8,
+                    padding: 12,
+                  }}
+                >
+                  <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
+                    <span
+                      style={{
+                        fontFamily: FONT_SANS,
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: 'var(--color-text-muted)',
+                        textTransform: 'uppercase' as const,
+                      }}
+                    >
                       {s.signal_type}
                     </span>
-                    <span className={s.direction === 'bullish' ? 'tag-long' : s.direction === 'bearish' ? 'tag-short' : 'font-sans text-[10px] text-text-muted'}>
+                    <span className={s.direction === 'bullish' ? 'tag-long' : s.direction === 'bearish' ? 'tag-short' : ''}
+                      style={s.direction !== 'bullish' && s.direction !== 'bearish' ? {
+                        fontFamily: FONT_SANS, fontSize: 10, color: 'var(--color-text-muted)'
+                      } : undefined}
+                    >
                       {s.direction}
                     </span>
                   </div>
-                  <p className="font-sans text-[12px] text-text-mid leading-relaxed">{s.description}</p>
-                  <div className="mt-1 font-sans text-[11px] text-text-muted">
+                  <p style={{ fontFamily: FONT_SANS, fontSize: 12, color: 'var(--color-text-mid)', lineHeight: 1.5 }}>{s.description}</p>
+                  <div style={{ marginTop: 4, fontFamily: FONT_SANS, fontSize: 11, color: 'var(--color-text-muted)' }}>
                     Strength: {Number(s.strength).toFixed(2)}
                   </div>
                 </div>
@@ -294,27 +448,92 @@ export default function Dashboard() {
         </section>
 
         {/* Recent Activity */}
-        <section>
-          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Recent Activity</h3>
+        <section className="panel-card">
+          <h3
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+            }}
+          >
+            Recent Activity
+          </h3>
           {cronLogs.length === 0 ? (
-            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No activity yet</p>
+            <p
+              style={{
+                fontFamily: FONT_SERIF,
+                fontStyle: 'italic',
+                fontSize: 13,
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                padding: '16px 0',
+              }}
+            >
+              No activity yet
+            </p>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col" style={{ gap: 0 }}>
               {cronLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-2 py-1.5 border-b border-border-light">
-                  <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${
-                    log.success ? 'bg-green' : 'bg-red'
-                  }`} />
-                  <div className="min-w-0 flex-1">
+                <div
+                  key={log.id}
+                  className="flex items-start"
+                  style={{
+                    gap: 8,
+                    padding: '8px 0',
+                    borderBottom: '0.5px solid var(--color-border-light)',
+                  }}
+                >
+                  <span
+                    style={{
+                      marginTop: 5,
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      backgroundColor: log.success ? 'var(--color-green)' : 'var(--color-red)',
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
                     <div className="flex items-center justify-between">
-                      <span className="font-sans text-[12px] font-medium text-text-primary truncate">
+                      <span
+                        style={{
+                          fontFamily: FONT_SANS,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: 'var(--color-text-primary)',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {log.cron_name}
                       </span>
-                      <span className="font-sans text-[11px] text-text-muted shrink-0 ml-2">
+                      <span
+                        style={{
+                          fontFamily: FONT_SANS,
+                          fontSize: 11,
+                          color: 'var(--color-text-muted)',
+                          flexShrink: 0,
+                          marginLeft: 8,
+                        }}
+                      >
                         {timeAgo(log.created_at)}
                       </span>
                     </div>
-                    <p className="font-sans text-[11px] text-text-muted truncate">{log.summary}</p>
+                    <p
+                      style={{
+                        fontFamily: FONT_SANS,
+                        fontSize: 11,
+                        color: 'var(--color-text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {log.summary}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -331,16 +550,44 @@ export default function Dashboard() {
 function TickerCard({
   label,
   value,
-  valueClass = 'text-text-primary',
+  valueColor = 'var(--color-text-primary)',
 }: {
   label: string
   value: string
-  valueClass?: string
+  valueColor?: string
 }) {
   return (
-    <div className="bg-bg-warm border border-border-light rounded-lg px-3.5 py-3">
-      <div className="font-sans text-[11px] font-medium text-text-muted uppercase">{label}</div>
-      <div className={`font-serif text-[18px] font-semibold mt-1 ${valueClass}`}>{value}</div>
+    <div
+      style={{
+        backgroundColor: 'var(--color-bg-warm)',
+        border: '0.5px solid var(--color-border)',
+        borderRadius: 8,
+        padding: '12px 14px',
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONT_SANS,
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--color-text-muted)',
+          textTransform: 'uppercase' as const,
+          letterSpacing: 0.3,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontFamily: FONT_SERIF,
+          fontSize: 18,
+          fontWeight: 600,
+          color: valueColor,
+          marginTop: 4,
+        }}
+      >
+        {value}
+      </div>
     </div>
   )
 }
@@ -348,36 +595,36 @@ function TickerCard({
 function TradesTable({
   trades,
   fmtCurrency,
-  pnlColor,
+  pnlColorVar,
 }: {
   trades: Trade[]
   fmtCurrency: (v: number | null | undefined) => string
-  pnlColor: (v: number | null | undefined) => string
+  pnlColorVar: (v: number | null | undefined) => string
 }) {
   return (
-    <table className="w-full text-[13px]">
+    <table className="editorial-table">
       <thead>
-        <tr className="border-b border-border">
+        <tr>
           {['Instrument', 'Direction', 'Strategy', 'Entry', 'P&L', 'Time'].map((h) => (
-            <th key={h} className="text-left font-sans text-[11px] font-medium text-text-muted py-2 px-3">
-              {h}
-            </th>
+            <th key={h}>{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {trades.map((t) => (
-          <tr key={t.id} className="border-b border-border-light hover:bg-bg-warm/50">
-            <td className="py-2 px-3 font-serif font-semibold text-[14px]">{t.instrument}</td>
-            <td className="py-2 px-3">
+          <tr key={t.id}>
+            <td className="instrument-cell" style={{ fontFamily: FONT_SERIF, fontWeight: 600, fontSize: 14 }}>
+              {t.instrument}
+            </td>
+            <td>
               <span className={t.direction === 'long' ? 'tag-long' : 'tag-short'}>{t.direction}</span>
             </td>
-            <td className="py-2 px-3 font-sans">{t.strategy}</td>
-            <td className="py-2 px-3 font-sans">{Number(t.entry_price).toFixed(4)}</td>
-            <td className={`py-2 px-3 font-sans ${pnlColor(t.pnl)}`}>
+            <td style={{ fontFamily: FONT_SANS }}>{t.strategy}</td>
+            <td style={{ fontFamily: FONT_SANS }}>{Number(t.entry_price).toFixed(4)}</td>
+            <td style={{ fontFamily: FONT_SANS, color: pnlColorVar(t.pnl) }}>
               {t.pnl != null ? fmtCurrency(t.pnl) : '—'}
             </td>
-            <td className="py-2 px-3 font-sans text-[11px] text-text-muted">
+            <td style={{ fontFamily: FONT_SANS, fontSize: 11, color: 'var(--color-text-muted)' }}>
               {timeAgo(t.opened_at)}
             </td>
           </tr>

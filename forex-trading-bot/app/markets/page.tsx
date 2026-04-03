@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 
+const FONT_SERIF = "Georgia, 'Times New Roman', serif"
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 interface MarketAsset {
   id: string
   name: string
@@ -51,9 +54,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   volatility: 'Volatility',
 }
 
-function pctColor(v: number | null) {
-  if (v == null) return 'text-text-muted'
-  return v > 0 ? 'text-green' : v < 0 ? 'text-red' : 'text-text-muted'
+function pctColorVar(v: number | null) {
+  if (v == null) return 'var(--color-text-muted)'
+  return v > 0 ? 'var(--color-green)' : v < 0 ? 'var(--color-red)' : 'var(--color-text-muted)'
 }
 
 function fmtPct(v: number | null) {
@@ -162,12 +165,12 @@ export default function MarketsPage() {
 
   if (loading) {
     return (
-      <div className="p-7">
-        <div className="skeleton h-6 w-40 mb-6" />
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-20 rounded-lg" />)}
+      <div style={{ padding: 28 }}>
+        <div className="skeleton" style={{ height: 24, width: 160, marginBottom: 24 }} />
+        <div className="grid grid-cols-4" style={{ gap: 16, marginBottom: 32 }}>
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 8 }} />)}
         </div>
-        <div className="skeleton h-96 rounded-lg" />
+        <div className="skeleton" style={{ height: 384, borderRadius: 10 }} />
       </div>
     )
   }
@@ -175,19 +178,64 @@ export default function MarketsPage() {
   return (
     <div style={{ minHeight: 'calc(100vh - 52px)' }} className="flex">
       {/* Main column */}
-      <div className="flex-1 p-7">
-        <h1 className="font-serif text-[18px] font-semibold text-text-primary mb-5">Markets</h1>
+      <div className="flex-1" style={{ padding: 28 }}>
+        <h1
+          style={{
+            fontFamily: FONT_SERIF,
+            fontSize: 18,
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+            marginBottom: 20,
+          }}
+        >
+          Markets
+        </h1>
 
         {/* Ticker cards — top 4 movers */}
         {topMovers.length > 0 && (
-          <div className="grid grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-4" style={{ gap: 16, marginBottom: 32 }}>
             {topMovers.map((a) => (
-              <div key={a.id} className="bg-bg-warm border border-border-light rounded-lg px-3.5 py-3">
-                <div className="font-sans text-[11px] font-medium text-text-muted uppercase">{a.symbol}</div>
-                <div className="font-serif text-[18px] font-semibold text-text-primary mt-1">
+              <div
+                key={a.id}
+                style={{
+                  backgroundColor: 'var(--color-bg-warm)',
+                  border: '0.5px solid var(--color-border)',
+                  borderRadius: 8,
+                  padding: '12px 14px',
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: FONT_SANS,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: 'var(--color-text-muted)',
+                    textTransform: 'uppercase' as const,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  {a.symbol}
+                </div>
+                <div
+                  style={{
+                    fontFamily: FONT_SERIF,
+                    fontSize: 18,
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    marginTop: 4,
+                  }}
+                >
                   {a.price != null ? formatPrice(a.price, a.category) : '—'}
                 </div>
-                <div className={`font-sans text-[12px] font-medium mt-0.5 ${pctColor(a.change_24h_pct)}`}>
+                <div
+                  style={{
+                    fontFamily: FONT_SANS,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    marginTop: 2,
+                    color: pctColorVar(a.change_24h_pct),
+                  }}
+                >
                   {fmtPct(a.change_24h_pct)}
                 </div>
               </div>
@@ -197,35 +245,47 @@ export default function MarketsPage() {
 
         {/* Asset grid */}
         {grouped.length === 0 ? (
-          <p className="font-serif italic text-text-muted text-center py-8">No price data yet.</p>
+          <p
+            style={{
+              fontFamily: FONT_SERIF,
+              fontStyle: 'italic',
+              color: 'var(--color-text-muted)',
+              textAlign: 'center',
+              padding: '32px 0',
+            }}
+          >
+            No price data yet.
+          </p>
         ) : (
           grouped.map(group => (
-            <section key={group.category} className="mb-6">
-              <div className="section-label mb-2">{group.label}</div>
-              <table className="w-full text-[13px]">
+            <section className="content-card" key={group.category} style={{ marginBottom: 24 }}>
+              <div className="section-label" style={{ marginBottom: 10 }}>{group.label}</div>
+              <table className="editorial-table">
                 <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left font-sans text-[11px] font-medium text-text-muted py-2 px-3">Instrument</th>
-                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">Price</th>
-                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">24h</th>
-                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">1W</th>
-                    <th className="text-right font-sans text-[11px] font-medium text-text-muted py-2 px-3">1Q</th>
+                  <tr>
+                    <th>Instrument</th>
+                    <th className="text-right">Price</th>
+                    <th className="text-right">24h</th>
+                    <th className="text-right">1W</th>
+                    <th className="text-right">1Q</th>
                   </tr>
                 </thead>
                 <tbody>
                   {group.items.map(asset => (
-                    <tr key={asset.id} className="border-b border-border-light hover:bg-bg-warm/50">
-                      <td className="py-2 px-3 font-serif font-semibold text-[14px]">{asset.name}</td>
-                      <td className="py-2 px-3 font-sans text-right">
+                    <tr key={asset.id}>
+                      <td className="instrument-cell" style={{ fontFamily: FONT_SERIF, fontWeight: 600, fontSize: 14 }}>
+                        {asset.name}
+                      </td>
+                      <td className="text-right" style={{ fontFamily: FONT_SANS }}>
                         {asset.price != null ? formatPrice(asset.price, asset.category) : '—'}
                       </td>
-                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_24h_pct)}`}>
+                      <td className="text-right" style={{ fontFamily: FONT_SANS, color: pctColorVar(asset.change_24h_pct) }}>
                         {fmtPct(asset.change_24h_pct)}
                       </td>
-                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_1w_pct)}`}>
+                      <td className="text-right" style={{ fontFamily: FONT_SANS, color: pctColorVar(asset.change_1w_pct) }}>
                         {fmtPct(asset.change_1w_pct)}
                       </td>
-                      <td className={`py-2 px-3 font-sans text-right ${pctColor(asset.change_1q_pct)}`}>
+                      <td className="text-right" style={{ fontFamily: FONT_SANS, color: pctColorVar(asset.change_1q_pct) }}>
                         {fmtPct(asset.change_1q_pct)}
                       </td>
                     </tr>
@@ -238,27 +298,66 @@ export default function MarketsPage() {
       </div>
 
       {/* Right panel */}
-      <aside style={{ width: 320 }} className="bg-bg-warm border-l border-border-light p-5 flex flex-col gap-6 shrink-0">
+      <aside
+        style={{
+          width: 320,
+          backgroundColor: 'var(--color-bg-warm)',
+          borderLeft: '0.5px solid var(--color-border-light)',
+          padding: 20,
+          overflowY: 'auto',
+        }}
+        className="flex flex-col shrink-0"
+      >
         {/* Morning Briefing */}
-        <section>
-          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Morning Briefing</h3>
+        <section className="panel-card" style={{ marginBottom: 20 }}>
+          <h3
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+            }}
+          >
+            Morning Briefing
+          </h3>
           {analysis ? (
-            <div className="flex flex-col gap-4">
-              <div className="font-sans text-[11px] text-text-muted">{analysis.analysis_date}</div>
+            <div className="flex flex-col" style={{ gap: 16 }}>
+              <div style={{ fontFamily: FONT_SANS, fontSize: 11, color: 'var(--color-text-muted)' }}>
+                {analysis.analysis_date}
+              </div>
 
               <div>
-                <div className="section-label mb-1">Summary</div>
-                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.market_summary}</p>
+                <div className="section-label" style={{ marginBottom: 6 }}>Summary</div>
+                <p style={{
+                  fontFamily: FONT_SERIF,
+                  fontSize: 13,
+                  color: 'var(--color-text-mid)',
+                  lineHeight: 1.6,
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                }}>
+                  {analysis.market_summary}
+                </p>
               </div>
 
               {analysis.key_movers && analysis.key_movers.length > 0 && (
                 <div>
-                  <div className="section-label mb-1">Key Movers</div>
-                  <div className="flex flex-col gap-1.5">
+                  <div className="section-label" style={{ marginBottom: 6 }}>Key Movers</div>
+                  <div className="flex flex-col" style={{ gap: 6 }}>
                     {analysis.key_movers.map((m, i) => (
-                      <div key={i} className="font-serif text-[13px] text-text-mid leading-relaxed">
-                        <span className="font-semibold text-text-primary">{m.instrument}</span>{' '}
-                        <span className={m.change.startsWith('+') ? 'text-green' : m.change.startsWith('-') ? 'text-red' : ''}>
+                      <div key={i} style={{
+                        fontFamily: FONT_SERIF,
+                        fontSize: 13,
+                        color: 'var(--color-text-mid)',
+                        lineHeight: 1.6,
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                      }}>
+                        <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{m.instrument}</span>{' '}
+                        <span style={{
+                          color: m.change.startsWith('+') ? 'var(--color-green)' : m.change.startsWith('-') ? 'var(--color-red)' : undefined
+                        }}>
                           ({m.change})
                         </span>{' '}
                         — {m.explanation}
@@ -269,35 +368,114 @@ export default function MarketsPage() {
               )}
 
               <div>
-                <div className="section-label mb-1">Geopolitical Watch</div>
-                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.geopolitical_watch}</p>
+                <div className="section-label" style={{ marginBottom: 6 }}>Geopolitical Watch</div>
+                <p style={{
+                  fontFamily: FONT_SERIF,
+                  fontSize: 13,
+                  color: 'var(--color-text-mid)',
+                  lineHeight: 1.6,
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                }}>
+                  {analysis.geopolitical_watch}
+                </p>
               </div>
 
               <div>
-                <div className="section-label mb-1">Week Ahead</div>
-                <p className="font-serif text-[13px] text-text-mid leading-relaxed">{analysis.week_ahead}</p>
+                <div className="section-label" style={{ marginBottom: 6 }}>Week Ahead</div>
+                <p style={{
+                  fontFamily: FONT_SERIF,
+                  fontSize: 13,
+                  color: 'var(--color-text-mid)',
+                  lineHeight: 1.6,
+                  overflowWrap: 'break-word',
+                  wordBreak: 'break-word',
+                }}>
+                  {analysis.week_ahead}
+                </p>
               </div>
             </div>
           ) : (
-            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No analysis yet</p>
+            <p style={{
+              fontFamily: FONT_SERIF,
+              fontStyle: 'italic',
+              fontSize: 13,
+              color: 'var(--color-text-muted)',
+              textAlign: 'center',
+              padding: '16px 0',
+            }}>
+              No analysis yet
+            </p>
           )}
         </section>
 
         {/* Economic Calendar */}
-        <section>
-          <h3 className="font-serif text-[15px] font-semibold text-text-primary mb-3">Economic Calendar</h3>
+        <section className="panel-card">
+          <h3
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+            }}
+          >
+            Economic Calendar
+          </h3>
           {events.length === 0 ? (
-            <p className="font-serif italic text-[13px] text-text-muted text-center py-4">No upcoming events</p>
+            <p style={{
+              fontFamily: FONT_SERIF,
+              fontStyle: 'italic',
+              fontSize: 13,
+              color: 'var(--color-text-muted)',
+              textAlign: 'center',
+              padding: '16px 0',
+            }}>
+              No upcoming events
+            </p>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col" style={{ gap: 0 }}>
               {events.map((e, i) => (
-                <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border-light">
-                  <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${
-                    e.impact === 'high' ? 'bg-red' : e.impact === 'medium' ? 'bg-amber' : 'bg-green'
-                  }`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-sans text-[12px] font-medium text-text-primary">{e.event_name}</div>
-                    <div className="font-sans text-[11px] text-text-muted">
+                <div
+                  key={i}
+                  className="flex items-start"
+                  style={{
+                    gap: 8,
+                    padding: '8px 0',
+                    borderBottom: '0.5px solid var(--color-border-light)',
+                  }}
+                >
+                  <span
+                    style={{
+                      marginTop: 6,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      backgroundColor: e.impact === 'high'
+                        ? 'var(--color-red)'
+                        : e.impact === 'medium'
+                        ? 'var(--color-amber)'
+                        : 'var(--color-green)',
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontFamily: FONT_SANS,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--color-text-primary)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {e.event_name}
+                    </div>
+                    <div style={{
+                      fontFamily: FONT_SANS,
+                      fontSize: 11,
+                      color: 'var(--color-text-muted)',
+                    }}>
                       {e.country} · {formatEventDate(e.event_time)}
                     </div>
                   </div>

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase-browser'
 
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 interface EquitySnapshot {
   equity: number | null
   daily_pnl: number | null
@@ -66,48 +68,72 @@ export function Header() {
   }, [])
 
   const fmtCurrency = (v: number | null | undefined) =>
-    v != null ? v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
+    v != null ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'
 
   const fmtPct = (v: number | null | undefined) =>
     v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'
 
   const pnlColor = (v: number | null | undefined) =>
-    v == null ? 'text-text-muted' : v >= 0 ? 'text-green' : 'text-red'
+    v == null ? 'var(--color-text-muted)' : v >= 0 ? 'var(--color-green)' : 'var(--color-red)'
 
   const isKillActive = killSwitch === 'active'
 
   return (
-    <header style={{ height: 52 }} className="border-b border-border/50 px-7 flex items-center justify-between bg-bg-surface">
+    <header
+      style={{
+        height: 52,
+        padding: '0 28px',
+        borderBottom: '0.5px solid var(--color-border)',
+        backgroundColor: 'var(--color-bg-surface)',
+      }}
+      className="flex items-center justify-between"
+    >
       {/* Left: equity stats */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center" style={{ gap: 32 }}>
         <StatItem label="Equity" value={fmtCurrency(equity?.equity)} />
         <StatItem
           label="Daily P&L"
           value={fmtPct(equity?.daily_pnl)}
-          valueClass={pnlColor(equity?.daily_pnl)}
+          valueColor={pnlColor(equity?.daily_pnl)}
         />
         <StatItem
           label="Drawdown"
           value={fmtPct(equity?.drawdown_percent ? -Math.abs(equity.drawdown_percent) : equity?.drawdown_percent)}
-          valueClass={
+          valueColor={
             equity?.drawdown_percent != null && equity.drawdown_percent > 10
-              ? 'text-red'
-              : 'text-text-muted'
+              ? 'var(--color-red)'
+              : 'var(--color-text-muted)'
           }
         />
       </div>
 
       {/* Right: badges */}
-      <div className="flex items-center gap-2">
-        <span className="font-sans text-[11px] font-medium px-3 py-1 rounded-md border border-green/50 text-green bg-green-bg">
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <span
+          style={{
+            fontFamily: FONT_SANS,
+            fontSize: 11,
+            fontWeight: 500,
+            padding: '4px 12px',
+            borderRadius: 6,
+            border: '1px solid var(--color-green)',
+            color: 'var(--color-green)',
+            backgroundColor: 'var(--color-green-bg)',
+          }}
+        >
           Live
         </span>
         <span
-          className={`font-sans text-[11px] font-medium px-3 py-1 rounded-md border ${
-            isKillActive
-              ? 'border-red text-red bg-red-bg'
-              : 'border-border text-text-muted'
-          }`}
+          style={{
+            fontFamily: FONT_SANS,
+            fontSize: 11,
+            fontWeight: 500,
+            padding: '4px 12px',
+            borderRadius: 6,
+            border: `1px solid ${isKillActive ? 'var(--color-red)' : 'var(--color-border)'}`,
+            color: isKillActive ? 'var(--color-red)' : 'var(--color-text-muted)',
+            backgroundColor: isKillActive ? 'var(--color-red-bg)' : 'transparent',
+          }}
         >
           Kill Switch {isKillActive ? 'ON' : 'Off'}
         </span>
@@ -119,16 +145,37 @@ export function Header() {
 function StatItem({
   label,
   value,
-  valueClass = 'text-text-primary',
+  valueColor = 'var(--color-text-primary)',
 }: {
   label: string
   value: string
-  valueClass?: string
+  valueColor?: string
 }) {
   return (
     <div className="flex flex-col">
-      <span className="font-sans text-[11px] text-text-muted font-medium">{label}</span>
-      <span className={`font-sans text-[13px] font-semibold ${valueClass}`}>{value}</span>
+      <span
+        style={{
+          fontFamily: FONT_SANS,
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--color-text-muted)',
+          textTransform: 'uppercase' as const,
+          letterSpacing: 0.3,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontFamily: FONT_SANS,
+          fontSize: 14,
+          fontWeight: 600,
+          color: valueColor,
+          marginTop: 1,
+        }}
+      >
+        {value}
+      </span>
     </div>
   )
 }

@@ -37,6 +37,9 @@
   --color-red-bg: #fdf0ee;
   --color-amber: #d4a017;
   --color-amber-bg: #fdf8e8;
+
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
 }
 
 /* Base reset */
@@ -102,4 +105,85 @@ html, body {
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.6px;
+}
+
+/* ── Editorial table styling ── */
+.editorial-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.editorial-table thead tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.editorial-table thead th {
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 8px 12px;
+}
+
+.editorial-table tbody tr {
+  border-bottom: 0.5px solid var(--color-border-light);
+  transition: background-color 0.15s ease;
+}
+
+.editorial-table tbody tr:hover {
+  background-color: var(--color-bg-warm);
+}
+
+.editorial-table tbody td {
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.editorial-table tbody td.instrument-cell {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Right-align utility for table cells */
+.editorial-table thead th.text-right,
+.editorial-table tbody td.text-right {
+  text-align: right;
+}
+
+/* ── Content card wrapper ── */
+.content-card {
+  background-color: var(--color-bg-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+/* ── Right panel card ── */
+.panel-card {
+  background-color: var(--color-bg-surface);
+  border: 0.5px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+/* ── Scrollbar styling for panels ── */
+aside::-webkit-scrollbar {
+  width: 4px;
+}
+
+aside::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 4px;
+}
+
+aside::-webkit-scrollbar-track {
+  background: transparent;
 }
