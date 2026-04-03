@@ -15,15 +15,16 @@ function makeContext(overrides: Partial<PreTradeContext> = {}): PreTradeContext 
     currentSpread: 0.5,
     averageSpread: 0.4,
     dailyPnlPercent: -0.01,
+    drawdownPercent: 0.10,
     ...overrides,
   }
 }
 
 describe('runPreTradeChecks', () => {
-  it('all 8 checks pass with valid context', () => {
+  it('all 9 checks pass with valid context', () => {
     const result = runPreTradeChecks(makeContext())
     expect(result.pass).toBe(true)
-    expect(result.checks.length).toBe(8)
+    expect(result.checks.length).toBe(9)
     result.checks.forEach(check => {
       expect(check.pass).toBe(true)
     })
@@ -123,17 +124,37 @@ describe('runPreTradeChecks', () => {
     expect(result.checks[6].pass).toBe(true)
   })
 
-  // Check 8: Daily loss buffer
+  // Check 8: Drawdown circuit breaker
+  it('fails when drawdown exceeds 30%', () => {
+    const result = runPreTradeChecks(makeContext({ drawdownPercent: 0.35 }))
+    expect(result.pass).toBe(false)
+    expect(result.checks[7].pass).toBe(false)
+    expect(result.checks[7].reason).toContain('35.0%')
+    expect(result.checks[7].reason).toContain('exceeds')
+  })
+
+  it('passes when drawdown is below 30%', () => {
+    const result = runPreTradeChecks(makeContext({ drawdownPercent: 0.29 }))
+    expect(result.checks[7].pass).toBe(true)
+  })
+
+  it('fails when drawdown is exactly 30%', () => {
+    const result = runPreTradeChecks(makeContext({ drawdownPercent: 0.30 }))
+    expect(result.pass).toBe(false)
+    expect(result.checks[7].pass).toBe(false)
+  })
+
+  // Check 9: Daily loss buffer
   it('fails when daily P&L at -4%', () => {
     const result = runPreTradeChecks(makeContext({ dailyPnlPercent: -0.04 }))
     expect(result.pass).toBe(false)
-    expect(result.checks[7].pass).toBe(false)
-    expect(result.checks[7].reason).toContain('-4.0%')
+    expect(result.checks[8].pass).toBe(false)
+    expect(result.checks[8].reason).toContain('-4.0%')
   })
 
   it('passes when daily P&L is -3.9%', () => {
     const result = runPreTradeChecks(makeContext({ dailyPnlPercent: -0.039 }))
-    expect(result.checks[7].pass).toBe(true)
+    expect(result.checks[8].pass).toBe(true)
   })
 
   // Multiple failures

@@ -19,10 +19,10 @@ interface GdeltResponse {
 }
 
 const GEOPOLITICAL_QUERIES = [
-  '"sanctions" OR "trade war" OR "tariff"',
-  '"military" OR "conflict" OR "war" OR "invasion"',
-  '"election" OR "regime change" OR "coup"',
-  '"OPEC" OR "energy crisis" OR "pipeline"',
+  'sanctions OR "trade war" OR tariff',
+  'military OR conflict OR war OR invasion',
+  'election OR "regime change" OR coup',
+  'OPEC OR "energy crisis" OR pipeline',
 ]
 
 async function queryGdelt(query: string, maxRecords = 25): Promise<GdeltArticle[]> {

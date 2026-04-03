@@ -6,6 +6,7 @@ import {
   MAX_CORRELATION,
   MAX_SPREAD_MULTIPLIER,
   DAILY_LOSS_BUFFER,
+  MAX_DRAWDOWN,
   LEVERAGE_CAPS,
   INSTRUMENT_CLUSTERS,
 } from './constants'
@@ -28,6 +29,7 @@ export interface PreTradeContext {
   currentSpread: number
   averageSpread: number
   dailyPnlPercent: number // negative means loss
+  drawdownPercent: number // 0.0 to 1.0 (e.g. 0.30 = 30%)
 }
 
 export interface PreTradeResult {
@@ -106,7 +108,15 @@ function checkSpread(ctx: PreTradeContext): CheckResult {
   return { pass: true, reason: 'Spread within acceptable range' }
 }
 
-// Check 8: Daily loss buffer
+// Check 8: Drawdown circuit breaker
+function checkDrawdown(ctx: PreTradeContext): CheckResult {
+  if (ctx.drawdownPercent >= MAX_DRAWDOWN) {
+    return { pass: false, reason: `Drawdown ${(ctx.drawdownPercent * 100).toFixed(1)}% exceeds max ${MAX_DRAWDOWN * 100}%` }
+  }
+  return { pass: true, reason: 'Drawdown within limit' }
+}
+
+// Check 9: Daily loss buffer
 function checkDailyLossBuffer(ctx: PreTradeContext): CheckResult {
   if (ctx.dailyPnlPercent <= -DAILY_LOSS_BUFFER) {
     return {
@@ -129,6 +139,7 @@ export function runPreTradeChecks(ctx: PreTradeContext): PreTradeResult {
     checkClusterLimit(ctx),
     checkCorrelation(ctx),
     checkSpread(ctx),
+    checkDrawdown(ctx),
     checkDailyLossBuffer(ctx),
   ]
 

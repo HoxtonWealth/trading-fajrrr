@@ -4,6 +4,9 @@ import { logCron } from '@/lib/services/cron-logger'
 import { getActiveInstruments, getFriendlyNames } from '@/lib/instruments'
 import { screenInstruments } from '@/lib/intelligence/screener'
 import { shouldRunNow } from '@/lib/intelligence/scan-scheduler'
+import { supabase } from '@/lib/services/supabase'
+import { MAX_DRAWDOWN, MAX_DAILY_LOSS } from '@/lib/risk/constants'
+import { alertCircuitBreaker } from '@/lib/services/telegram'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -15,6 +18,45 @@ export async function GET(request: Request) {
   const shouldRun = await shouldRunNow('run-pipeline')
   if (!shouldRun) {
     return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to run in current session' })
+  }
+
+  // Circuit breakers — halt if drawdown or daily loss exceeds limits
+  try {
+    const { data: latestEquity } = await supabase
+      .from('equity_snapshots')
+      .select('equity, drawdown_percent, daily_pnl')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (latestEquity && latestEquity.equity > 0) {
+      const drawdownDecimal = latestEquity.drawdown_percent / 100
+
+      if (drawdownDecimal >= MAX_DRAWDOWN) {
+        const msg = `CIRCUIT BREAKER: Drawdown at ${latestEquity.drawdown_percent.toFixed(1)}% exceeds ${(MAX_DRAWDOWN * 100).toFixed(0)}% limit. All trading halted.`
+        await logCron('run-pipeline', msg, false)
+        alertCircuitBreaker(
+          `Drawdown ${latestEquity.drawdown_percent.toFixed(1)}% > ${(MAX_DRAWDOWN * 100).toFixed(0)}% max`,
+          'Pipeline halted — no new trades until drawdown recovers'
+        ).catch(() => {})
+        return NextResponse.json({ success: true, halted: true, reason: msg })
+      }
+
+      if (latestEquity.daily_pnl < 0) {
+        const dailyLossPercent = Math.abs(latestEquity.daily_pnl) / latestEquity.equity
+        if (dailyLossPercent >= MAX_DAILY_LOSS) {
+          const msg = `DAILY LOSS LIMIT: Down ${(dailyLossPercent * 100).toFixed(1)}% today, exceeds ${(MAX_DAILY_LOSS * 100).toFixed(0)}% limit. Trading halted for today.`
+          await logCron('run-pipeline', msg, false)
+          alertCircuitBreaker(
+            `Daily loss ${(dailyLossPercent * 100).toFixed(1)}% > ${(MAX_DAILY_LOSS * 100).toFixed(0)}% max`,
+            'Pipeline halted for today — will resume tomorrow'
+          ).catch(() => {})
+          return NextResponse.json({ success: true, halted: true, reason: msg })
+        }
+      }
+    }
+  } catch (cbError) {
+    console.error('[cron/run-pipeline] Circuit breaker check failed:', cbError)
   }
 
   const INSTRUMENTS = await getActiveInstruments()

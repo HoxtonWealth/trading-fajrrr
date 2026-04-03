@@ -231,7 +231,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // 4. Calculate position size
   const { data: equitySnapshot } = await supabase
     .from('equity_snapshots')
-    .select('equity, daily_pnl')
+    .select('equity, daily_pnl, drawdown_percent')
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
@@ -344,6 +344,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     currentSpread: 0,
     averageSpread: 1,
     dailyPnlPercent,
+    drawdownPercent: equitySnapshot?.drawdown_percent ? equitySnapshot.drawdown_percent / 100 : 0,
   }
 
   const preTradeResult = runPreTradeChecks(preTradeCtx)
