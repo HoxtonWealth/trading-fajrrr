@@ -30,14 +30,24 @@ export async function GET(request: Request) {
 
   try {
     const results: string[] = []
+    const errors: string[] = []
 
     for (const instrument of INSTRUMENTS) {
-      const summary = await ingestInstrument(instrument, GRANULARITY, CANDLE_COUNT)
-      results.push(summary)
+      try {
+        const summary = await ingestInstrument(instrument, GRANULARITY, CANDLE_COUNT)
+        results.push(summary)
+      } catch (instError) {
+        const errMsg = instError instanceof Error ? instError.message : 'Unknown'
+        errors.push(`${instrument}: ${errMsg}`)
+        console.error(`[cron/ingest-candles] Failed for ${instrument}:`, instError)
+      }
     }
 
-    const msg = `Fetched latest prices for all ${INSTRUMENTS.length} markets and updated trend/momentum indicators.`
-    await logCron('ingest-candles', msg)
+    const successCount = results.length
+    const msg = errors.length > 0
+      ? `Fetched prices for ${successCount}/${INSTRUMENTS.length} markets. Failed: ${errors.map(e => e.split(':')[0]).join(', ')}.`
+      : `Fetched latest prices for all ${INSTRUMENTS.length} markets and updated trend/momentum indicators.`
+    await logCron('ingest-candles', msg, errors.length === 0)
 
     return NextResponse.json({ success: true, summary: results.join(' | ') })
   } catch (error) {
