@@ -57,7 +57,10 @@ export interface GeopoliticalArticle {
 export async function fetchGeopoliticalNews(): Promise<GeopoliticalArticle[]> {
   const allArticles: GeopoliticalArticle[] = []
 
-  for (const query of GEOPOLITICAL_QUERIES) {
+  for (let i = 0; i < GEOPOLITICAL_QUERIES.length; i++) {
+    const query = GEOPOLITICAL_QUERIES[i]
+    // GDELT rate limit: 1 request per 5 seconds
+    if (i > 0) await new Promise(r => setTimeout(r, 5500))
     try {
       const articles = await queryGdelt(query)
       for (const a of articles) {
