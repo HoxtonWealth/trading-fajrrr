@@ -2,18 +2,24 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { logCron } from '@/lib/services/cron-logger'
 
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY
-const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1'
+const FF_CALENDAR_URL = 'https://nfs.faireconomy.media/ff_calendar_thisweek.json'
 
-interface FinnhubCalendarEvent {
+interface FFCalendarEvent {
+  title: string
   country: string
-  event: string
-  impact: string
-  time: string
-  actual?: number
-  estimate?: number
-  prev?: number
+  date: string
+  impact: string // 'High' | 'Medium' | 'Low' | 'Holiday'
+  forecast: string
+  previous: string
 }
+
+/** Map FF country codes (USD, EUR, etc.) to ISO country codes for consistency */
+const COUNTRY_MAP: Record<string, string> = {
+  USD: 'US', EUR: 'EU', GBP: 'GB', JPY: 'JP',
+  AUD: 'AU', NZD: 'NZ', CAD: 'CA', CHF: 'CH', CNY: 'CN',
+}
+
+const RELEVANT_CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'AUD', 'NZD', 'CAD', 'CHF']
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -22,54 +28,37 @@ export async function GET(request: Request) {
   }
 
   try {
-    if (!FINNHUB_API_KEY) {
-      return NextResponse.json({ success: false, error: 'FINNHUB_API_KEY not set' }, { status: 500 })
-    }
-
-    // Fetch next 7 days of economic events
-    const from = new Date().toISOString().split('T')[0]
-    const to = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-
-    const response = await fetch(
-      `${FINNHUB_BASE_URL}/calendar/economic?from=${from}&to=${to}&token=${FINNHUB_API_KEY}`
-    )
-
-    if (response.status === 403) {
-      await logCron('ingest-calendar', 'Economic calendar needs a premium API plan — skipped. Bot trades fine without it.')
-      return NextResponse.json({
-        success: true,
-        summary: 'Finnhub calendar requires premium plan — skipped.',
-      })
-    }
+    const response = await fetch(FF_CALENDAR_URL)
 
     if (!response.ok) {
-      throw new Error(`Finnhub calendar API error ${response.status}`)
+      throw new Error(`ForexFactory calendar API error ${response.status}`)
     }
 
-    const data = await response.json() as { economicCalendar: FinnhubCalendarEvent[] }
-    const events = data.economicCalendar ?? []
+    const events = await response.json() as FFCalendarEvent[]
 
-    // Filter for relevant countries and high/medium impact
-    const relevantCountries = ['US', 'EU', 'GB', 'JP']
+    // Filter for relevant currencies and high/medium impact
+    const now = new Date()
     const relevantEvents = events.filter(e =>
-      relevantCountries.includes(e.country) &&
-      ['high', 'medium'].includes(e.impact?.toLowerCase() ?? '')
+      RELEVANT_CURRENCIES.includes(e.country) &&
+      ['High', 'Medium'].includes(e.impact) &&
+      new Date(e.date) >= now
     )
 
     if (relevantEvents.length === 0) {
+      await logCron('ingest-calendar', 'No upcoming high/medium impact events this week.')
       return NextResponse.json({ success: true, summary: 'No relevant events found' })
     }
 
     // Upsert events
     const rows = relevantEvents.map(e => ({
-      event_name: e.event,
-      country: e.country,
-      impact: e.impact?.toLowerCase() === 'high' ? 'high' : 'medium',
-      event_time: e.time,
-      actual: e.actual?.toString() ?? null,
-      estimate: e.estimate?.toString() ?? null,
-      previous: e.prev?.toString() ?? null,
-      source: 'finnhub',
+      event_name: e.title,
+      country: COUNTRY_MAP[e.country] ?? e.country,
+      impact: e.impact.toLowerCase() as 'high' | 'medium',
+      event_time: e.date,
+      actual: null,
+      estimate: e.forecast || null,
+      previous: e.previous || null,
+      source: 'forexfactory',
     }))
 
     const { error } = await supabase
@@ -80,11 +69,16 @@ export async function GET(request: Request) {
       throw new Error(`Event upsert failed: ${error.message}`)
     }
 
+    const highCount = rows.filter(r => r.impact === 'high').length
+    const msg = `Loaded ${rows.length} upcoming events (${highCount} high-impact) from ForexFactory.`
+    await logCron('ingest-calendar', msg)
+
     return NextResponse.json({
       success: true,
-      summary: `Upserted ${rows.length} events for next 7 days`,
+      summary: `Upserted ${rows.length} events (${highCount} high-impact)`,
     })
   } catch (error) {
+    await logCron('ingest-calendar', `Failed: ${error instanceof Error ? error.message : 'Unknown'}`, false).catch(() => {})
     console.error('[cron/ingest-calendar] Error:', error)
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
