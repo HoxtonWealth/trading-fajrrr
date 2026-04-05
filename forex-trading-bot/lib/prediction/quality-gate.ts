@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/services/supabase'
-
-const BOT_INSTRUMENTS = ['XAU_USD', 'EUR_GBP', 'EUR_USD', 'USD_JPY', 'BCO_USD', 'US30_USD']
+import { getActiveInstruments } from '@/lib/instruments'
 const MIN_STRENGTH = 0.6
 const MAX_AGE_HOURS = 12
 const MIN_VOLUME_POLYMARKET = 100000 // $100K
@@ -36,8 +35,9 @@ export function checkStrength(signal: RawSignal): QualityResult {
   return { passed: true }
 }
 
-export function checkInstrumentMapping(signal: RawSignal): QualityResult {
-  const mapped = signal.instruments.filter(i => BOT_INSTRUMENTS.includes(i))
+export async function checkInstrumentMapping(signal: RawSignal): Promise<QualityResult> {
+  const activeInstruments = await getActiveInstruments()
+  const mapped = signal.instruments.filter(i => activeInstruments.includes(i))
   if (mapped.length === 0) {
     return { passed: false, reason: 'No matching bot instruments' }
   }
@@ -66,7 +66,7 @@ export async function runQualityGate(signal: RawSignal): Promise<{
   const results: QualityResult[] = []
 
   results.push(checkStrength(signal))
-  results.push(checkInstrumentMapping(signal))
+  results.push(await checkInstrumentMapping(signal))
   results.push(await checkNoOpposingSignal(signal))
 
   const failures = results.filter(r => !r.passed)
@@ -88,12 +88,13 @@ export async function processSignals(signals: RawSignal[]): Promise<{ stored: nu
     const result = await runQualityGate(signal)
 
     if (result.passed) {
+      const activeInstruments = await getActiveInstruments()
       await supabase.from('prediction_signals').insert({
         market_id: signal.marketId,
         signal_type: signal.signalType,
         description: signal.description,
         strength: signal.strength,
-        instruments: signal.instruments.filter(i => BOT_INSTRUMENTS.includes(i)),
+        instruments: signal.instruments.filter(i => activeInstruments.includes(i)),
         direction: signal.direction,
         status: 'active',
         expires_at: new Date(Date.now() + MAX_AGE_HOURS * 60 * 60 * 1000).toISOString(),

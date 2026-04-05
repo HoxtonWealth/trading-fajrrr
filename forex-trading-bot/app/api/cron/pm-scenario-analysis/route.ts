@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/services/supabase'
 import { callLLM, parseLLMJson } from '@/lib/services/openrouter'
 import { logCron } from '@/lib/services/cron-logger'
+import { getActiveInstruments } from '@/lib/instruments'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -26,6 +27,7 @@ export async function GET(request: Request) {
       `[${s.signal_type}] ${s.description} (strength: ${s.strength.toFixed(2)}, direction: ${s.direction})`
     ).join('\n')
 
+    const instruments = await getActiveInstruments()
     const response = await callLLM({
       tier: 'strong',
       systemPrompt: `You synthesize prediction market signals into a macro narrative for forex trading. Output JSON:
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
   "instrumentImpacts": [{"instrument": "XAU_USD", "bias": "bullish|bearish", "confidence": 0.0-1.0}],
   "confidence": 0.0-1.0
 }
-Instruments: XAU_USD, EUR_GBP, EUR_USD, USD_JPY, BCO_USD, US30_USD.
+Instruments: ${instruments.join(', ')}.
 Output valid JSON only.`,
       userPrompt: `Synthesize these active prediction market signals into a macro narrative:\n\n${signalSummary}`,
       maxTokens: 600,
