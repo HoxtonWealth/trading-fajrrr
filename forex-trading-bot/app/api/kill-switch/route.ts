@@ -9,8 +9,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  // Allow dashboard (same-origin) calls without auth header
+  // External callers (Telegram, etc.) must provide Bearer token
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${KILL_SWITCH_SECRET}`) {
+  const referer = request.headers.get('referer') || ''
+  const isSameOrigin = referer.includes('/dashboard')
+  if (!isSameOrigin && authHeader !== `Bearer ${KILL_SWITCH_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

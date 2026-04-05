@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 export function KillSwitchButton({ initialState }: { initialState: string }) {
   const [state, setState] = useState(initialState)
   const [loading, setLoading] = useState(false)
@@ -22,37 +24,26 @@ export function KillSwitchButton({ initialState }: { initialState: string }) {
   const isActive = state === 'active'
 
   return (
-    <div style={{
-      padding: '16px',
-      background: isActive ? '#fee' : '#efe',
-      border: `2px solid ${isActive ? '#c00' : '#0a0'}`,
-      borderRadius: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '1rem',
-    }}>
-      <div>
-        <strong style={{ fontSize: '1.1rem' }}>
-          Kill Switch: {isActive ? 'ACTIVE (Trading Halted)' : 'Inactive (Trading Normal)'}
-        </strong>
-      </div>
-      <button
-        onClick={toggle}
-        disabled={loading}
-        style={{
-          padding: '8px 20px',
-          background: isActive ? '#0a0' : '#c00',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '4px',
-          cursor: loading ? 'wait' : 'pointer',
-          fontWeight: 'bold',
-          fontSize: '0.95rem',
-        }}
-      >
-        {loading ? '...' : isActive ? 'Resume Trading' : 'HALT TRADING'}
-      </button>
-    </div>
+    <button
+      onClick={toggle}
+      disabled={loading}
+      style={{
+        width: '100%',
+        fontFamily: FONT_SANS,
+        fontSize: 13,
+        fontWeight: 600,
+        padding: '10px 16px',
+        borderRadius: 8,
+        border: `1.5px solid ${isActive ? 'var(--color-green)' : 'var(--color-red)'}`,
+        backgroundColor: isActive ? 'var(--color-green-bg)' : 'var(--color-red-bg)',
+        color: isActive ? 'var(--color-green)' : 'var(--color-red)',
+        cursor: loading ? 'wait' : 'pointer',
+        opacity: loading ? 0.5 : 1,
+        transition: 'all 0.15s ease',
+        letterSpacing: 0.3,
+      }}
+    >
+      {loading ? '...' : isActive ? 'Resume Trading' : 'Halt Trading'}
+    </button>
   )
 }

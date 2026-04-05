@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+const FONT_SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif"
+
 export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: number }) {
   const [loading, setLoading] = useState(false)
   const [resetAt, setResetAt] = useState<string | null>(null)
@@ -24,13 +26,17 @@ export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: numb
 
   if (resetAt) {
     return (
-      <div style={{
-        padding: '16px',
-        background: '#efe',
-        border: '2px solid #0a0',
-        borderRadius: '8px',
-        marginBottom: '1rem',
-      }}>
+      <div
+        style={{
+          backgroundColor: 'var(--color-green-bg)',
+          border: '1px solid var(--color-green)',
+          borderRadius: 10,
+          padding: 16,
+          fontFamily: FONT_SANS,
+          fontSize: 13,
+          color: 'var(--color-green)',
+        }}
+      >
         <strong>Circuit breaker reset.</strong> Drawdown baseline will recalculate on next equity snapshot (~5 min).
       </div>
     )
@@ -39,21 +45,20 @@ export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: numb
   if (!isTriggered) return null
 
   return (
-    <div style={{
-      padding: '16px',
-      background: '#fff3f3',
-      border: '2px solid #c00',
-      borderRadius: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '1rem',
-    }}>
+    <div
+      className="flex items-center justify-between"
+      style={{
+        backgroundColor: 'var(--color-red-bg)',
+        border: '1px solid var(--color-red)',
+        borderRadius: 10,
+        padding: 16,
+      }}
+    >
       <div>
-        <strong style={{ fontSize: '1.1rem', color: '#c00' }}>
+        <div style={{ fontFamily: FONT_SANS, fontSize: 14, fontWeight: 600, color: 'var(--color-red)' }}>
           Circuit Breaker ACTIVE — Drawdown {currentDrawdown.toFixed(1)}% exceeds 30% limit
-        </strong>
-        <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '4px' }}>
+        </div>
+        <div style={{ fontFamily: FONT_SANS, fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
           Pipeline halted. Close losing positions on Capital.com, then reset to resume.
         </div>
       </div>
@@ -61,15 +66,19 @@ export function CircuitBreakerReset({ currentDrawdown }: { currentDrawdown: numb
         onClick={reset}
         disabled={loading}
         style={{
-          padding: '8px 20px',
-          background: '#0a0',
-          color: '#fff',
+          fontFamily: FONT_SANS,
+          fontSize: 13,
+          fontWeight: 600,
+          padding: '10px 18px',
+          borderRadius: 8,
+          backgroundColor: 'var(--color-green)',
+          color: '#ffffff',
           border: 'none',
-          borderRadius: '4px',
+          flexShrink: 0,
+          marginLeft: 16,
           cursor: loading ? 'wait' : 'pointer',
-          fontWeight: 'bold',
-          fontSize: '0.95rem',
-          whiteSpace: 'nowrap',
+          opacity: loading ? 0.5 : 1,
+          transition: 'opacity 0.15s ease',
         }}
       >
         {loading ? '...' : 'Reset & Resume'}
