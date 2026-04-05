@@ -256,6 +256,95 @@ export default function Dashboard() {
           )}
         </section>
 
+        {/* Recent Activity */}
+        <section className="content-card" style={{ marginBottom: 28 }}>
+          <h2
+            style={{
+              fontFamily: FONT_SERIF,
+              fontSize: 15,
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 16,
+            }}
+          >
+            Recent Activity
+          </h2>
+          {cronLogs.length === 0 ? (
+            <p
+              style={{
+                fontFamily: FONT_SERIF,
+                fontStyle: 'italic',
+                color: 'var(--color-text-muted)',
+                textAlign: 'center',
+                padding: '32px 0',
+              }}
+            >
+              No activity yet
+            </p>
+          ) : (
+            <div className="flex flex-col" style={{ gap: 0 }}>
+              {cronLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start"
+                  style={{
+                    gap: 10,
+                    padding: '10px 0',
+                    borderBottom: '0.5px solid var(--color-border-light)',
+                  }}
+                >
+                  <span
+                    style={{
+                      marginTop: 5,
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      backgroundColor: log.success ? 'var(--color-green)' : 'var(--color-red)',
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="flex items-center justify-between">
+                      <span
+                        style={{
+                          fontFamily: FONT_SANS,
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {log.cron_name}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: FONT_SANS,
+                          fontSize: 11,
+                          color: 'var(--color-text-muted)',
+                          flexShrink: 0,
+                          marginLeft: 8,
+                        }}
+                      >
+                        {timeAgo(log.created_at)}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        fontFamily: FONT_SANS,
+                        fontSize: 12,
+                        color: 'var(--color-text-muted)',
+                        marginTop: 2,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {log.summary}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Agent Scorecards */}
         <section className="content-card">
           <h2
@@ -447,99 +536,6 @@ export default function Dashboard() {
           )}
         </section>
 
-        {/* Recent Activity */}
-        <section className="panel-card">
-          <h3
-            style={{
-              fontFamily: FONT_SERIF,
-              fontSize: 15,
-              fontWeight: 600,
-              color: 'var(--color-text-primary)',
-              marginBottom: 12,
-            }}
-          >
-            Recent Activity
-          </h3>
-          {cronLogs.length === 0 ? (
-            <p
-              style={{
-                fontFamily: FONT_SERIF,
-                fontStyle: 'italic',
-                fontSize: 13,
-                color: 'var(--color-text-muted)',
-                textAlign: 'center',
-                padding: '16px 0',
-              }}
-            >
-              No activity yet
-            </p>
-          ) : (
-            <div className="flex flex-col" style={{ gap: 0 }}>
-              {cronLogs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-start"
-                  style={{
-                    gap: 8,
-                    padding: '8px 0',
-                    borderBottom: '0.5px solid var(--color-border-light)',
-                  }}
-                >
-                  <span
-                    style={{
-                      marginTop: 5,
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      backgroundColor: log.success ? 'var(--color-green)' : 'var(--color-red)',
-                    }}
-                  />
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="flex items-center justify-between">
-                      <span
-                        style={{
-                          fontFamily: FONT_SANS,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: 'var(--color-text-primary)',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {log.cron_name}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: FONT_SANS,
-                          fontSize: 11,
-                          color: 'var(--color-text-muted)',
-                          flexShrink: 0,
-                          marginLeft: 8,
-                        }}
-                      >
-                        {timeAgo(log.created_at)}
-                      </span>
-                    </div>
-                    <p
-                      style={{
-                        fontFamily: FONT_SANS,
-                        fontSize: 11,
-                        color: 'var(--color-text-muted)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {log.summary}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
       </aside>
     </div>
   )
