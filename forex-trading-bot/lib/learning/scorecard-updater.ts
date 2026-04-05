@@ -36,7 +36,10 @@ export async function updateScorecards(): Promise<{ updated: number }> {
   }>()
 
   for (const trade of trades) {
-    const agent = trade.strategy === 'trend' ? 'technical_trend' : `technical_${trade.strategy}`
+    // Map all strategies to 'technical' — both trend and mean_reversion
+    // come from the technical analyst. Matches agent names used in the
+    // pipeline: 'technical', 'sentiment', 'macro', 'regime'.
+    const agent = 'technical'
     const key = `${agent}:${trade.instrument}`
 
     if (!aggregates.has(key)) {
@@ -109,7 +112,7 @@ export async function updateScorecards(): Promise<{ updated: number }> {
     }
   }
 
-  // Upsert scorecards with weights
+  // Upsert trade-based scorecards (technical agent)
   let updated = 0
   for (const agg of aggregates.values()) {
     const winRate = agg.total > 0 ? agg.wins / agg.total : 0
@@ -137,6 +140,39 @@ export async function updateScorecards(): Promise<{ updated: number }> {
 
     if (upsertError) {
       throw new Error(`Failed to upsert scorecard for ${agg.agent}/${agg.instrument}: ${upsertError.message}`)
+    }
+    updated++
+  }
+
+  // Upsert prediction-based scorecards (sentiment, macro, regime agents)
+  // These agents don't generate trades directly but their prediction accuracy
+  // drives Darwinian weights used by the Chief Analyst.
+  for (const [key, acc] of predictionAccuracy.entries()) {
+    const [agent, instrument] = key.split(':')
+    // Skip 'technical' — already covered by trade-based aggregation above
+    if (agent === 'technical') continue
+
+    const accuracy = acc.total > 0 ? acc.correct / acc.total : 0.5
+    let weight = 1.0 + (accuracy - 0.5) * 3.0
+    weight = Math.max(MIN_DARWINIAN_WEIGHT, Math.min(MAX_DARWINIAN_WEIGHT, weight))
+
+    const { error: upsertError } = await supabase
+      .from('agent_scorecards')
+      .upsert({
+        agent,
+        instrument,
+        total_trades: acc.total,
+        wins: acc.correct,
+        losses: acc.total - acc.correct,
+        win_rate: accuracy,
+        avg_pnl: 0,
+        total_pnl: 0,
+        weight,
+        last_updated: new Date().toISOString(),
+      }, { onConflict: 'agent,instrument' })
+
+    if (upsertError) {
+      throw new Error(`Failed to upsert scorecard for ${agent}/${instrument}: ${upsertError.message}`)
     }
     updated++
   }
