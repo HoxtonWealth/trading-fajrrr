@@ -39,5 +39,8 @@
 - [2026-04-03] Circuit breaker + daily loss halt deployed (drawdown 40.6% > 30% limit, pipeline now halted)
 - [2026-04-03] GDELT query fix deployed (nested quote bug causing 6x/day failures)
 
+## Analysis Completed
+- [2026-04-05] Risk wall tuning: MAX_OPEN_POSITIONS 6→8, TARGET_ANNUAL_VOL 15%→20%, CIRCUIT_BREAKER_HALT_HOURS 48→24, leverage caps for commodities/indices 10→15, INSTRUMENT_CLUSTERS rebuilt for 12 instruments (6 clusters), sentiment veto replaced with 50% size reduction. 141 tests passing (was 137).
+
 ## Last Updated
-2026-04-03 — Trade frequency analysis complete, circuit breakers deployed, GDELT fixed
+2026-04-05 — Risk wall tuning deployed

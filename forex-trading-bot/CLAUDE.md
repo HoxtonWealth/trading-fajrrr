@@ -26,7 +26,8 @@ Thresholds adjusted based on funnel analysis (`_bmad-output/analysis/trade-frequ
 - **Agent confidence threshold: UNCHANGED at 0.3**
 - **Instruments: 12** (was 6) — added AUD_USD, GBP_USD, NZD_USD, XAG_USD, US500_USD, GER40_EUR
 - Pipeline runs every 15 min (scan scheduler decides when to actually execute based on market session)
-- All risk limits UNCHANGED (2% per trade, 6 max positions, stops, circuit breakers + drawdown + daily loss halts)
+- **Risk wall tuning (2026-04-05):** MAX_OPEN_POSITIONS 6→8, leverage caps for commodities/indices 10→15, TARGET_ANNUAL_VOL 15%→20%, CIRCUIT_BREAKER_HALT_HOURS 48→24, INSTRUMENT_CLUSTERS rebuilt for 12 instruments, sentiment veto replaced with 50% size reduction
+- Core safety limits UNCHANGED (2% per trade, 5% daily loss, 30% max drawdown, stops, circuit breakers)
 
 ## 14 Cron Jobs
 | Cron | Schedule | What it does |

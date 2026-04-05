@@ -46,15 +46,15 @@ describe('runPreTradeChecks', () => {
 
   // Check 2: Leverage cap
   it('fails when leverage exceeds cap for instrument', () => {
-    // XAU_USD cap is 10
-    const result = runPreTradeChecks(makeContext({ leverage: 12 }))
+    // XAU_USD cap is 15
+    const result = runPreTradeChecks(makeContext({ leverage: 16 }))
     expect(result.pass).toBe(false)
     expect(result.checks[1].pass).toBe(false)
-    expect(result.checks[1].reason).toContain('12.0x')
+    expect(result.checks[1].reason).toContain('16.0x')
   })
 
   it('passes when leverage at cap', () => {
-    const result = runPreTradeChecks(makeContext({ leverage: 10 }))
+    const result = runPreTradeChecks(makeContext({ leverage: 15 }))
     expect(result.checks[1].pass).toBe(true)
   })
 
@@ -73,10 +73,10 @@ describe('runPreTradeChecks', () => {
 
   // Check 4: Open positions
   it('fails when open positions at max', () => {
-    const result = runPreTradeChecks(makeContext({ openPositionCount: 6 }))
+    const result = runPreTradeChecks(makeContext({ openPositionCount: 8 }))
     expect(result.pass).toBe(false)
     expect(result.checks[3].pass).toBe(false)
-    expect(result.checks[3].reason).toContain('6')
+    expect(result.checks[3].reason).toContain('8')
   })
 
   // Check 5: Cluster limit
@@ -162,10 +162,39 @@ describe('runPreTradeChecks', () => {
     const result = runPreTradeChecks(makeContext({
       riskPercent: 0.05,
       dailyTradeCount: 10,
-      openPositionCount: 6,
+      openPositionCount: 8,
     }))
     expect(result.pass).toBe(false)
     const failures = result.checks.filter(c => !c.pass)
     expect(failures.length).toBe(3)
+  })
+
+  // Cluster limit with new 12-instrument clusters
+  it('fails when cluster 1 (USD-shorts) has 2 positions and adding a third', () => {
+    // GBP_USD is cluster 1, EUR_USD and AUD_USD already open (both cluster 1)
+    const result = runPreTradeChecks(makeContext({
+      instrument: 'GBP_USD',
+      openInstruments: ['EUR_USD', 'AUD_USD'],
+      leverage: 5,
+    }))
+    expect(result.checks[4].pass).toBe(false)
+    expect(result.checks[4].reason).toContain('Cluster 1')
+  })
+
+  it('all 12 instruments have a defined cluster', () => {
+    const instruments = [
+      'EUR_USD', 'GBP_USD', 'AUD_USD', 'NZD_USD',
+      'USD_JPY', 'XAU_USD', 'XAG_USD', 'BCO_USD',
+      'EUR_GBP', 'US30_USD', 'US500_USD', 'GER40_EUR',
+    ]
+    for (const inst of instruments) {
+      const result = runPreTradeChecks(makeContext({
+        instrument: inst,
+        openInstruments: [],
+        leverage: 5,
+      }))
+      // Cluster check should NOT say "not in a defined cluster"
+      expect(result.checks[4].reason).not.toContain('not in a defined cluster')
+    }
   })
 })
