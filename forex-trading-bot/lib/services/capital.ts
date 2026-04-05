@@ -128,7 +128,7 @@ const EPIC_MAP: Record<string, string> = {
   NZD_USD: 'NZDUSD',
   XAG_USD: 'SILVER',
   US500_USD: 'US500',
-  GER40_EUR: 'GERMANY40',
+  GER40_EUR: 'DE40',
 }
 
 const REVERSE_EPIC_MAP: Record<string, string> = {}
