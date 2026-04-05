@@ -23,5 +23,14 @@ Format: `[DATE] DECISION — Context — Alternatives considered — Why this ch
   5. Quick wins identified: lower TF ADX to 15, add BB proximity tolerance, relax RSI to 45/55, add more instruments
 - **[2026-04-03] Circuit breaker enforcement** — MAX_DRAWDOWN (30%) was defined in constants but never checked anywhere. Drawdown reached 40.6%. Added pipeline-level halt + pre-trade check #9. Also enforced MAX_DAILY_LOSS (5%) halt.
 
+- **[2026-04-05] Risk wall tuning — data-driven relaxation of secondary limits:**
+  - MAX_OPEN_POSITIONS 6→8: 12 instruments + 1-2 week hold periods fill 6 slots in ~6 days, blocking new entries. 8 gives headroom without removing constraint.
+  - TARGET_ANNUAL_VOL 15%→20%: 15% is conservative for forex, dampened gold/oil positions excessively. 20% lets vol targeting scale positions appropriately.
+  - CIRCUIT_BREAKER_HALT_HOURS 48→24: 48h halt too long for a daily-trading strategy on a demo account in learning phase.
+  - Leverage caps for XAU_USD, BCO_USD, US30_USD, US500_USD, GER40_EUR, XAG_USD: 10→15. Real protection is the 2% risk cap; leverage cap is a secondary safety net.
+  - INSTRUMENT_CLUSTERS rebuilt: 6 instruments → 12 across 6 clusters. USD-shorts (EUR/GBP/AUD/NZD), JPY, Metals (XAU/XAG), Energy, Crosses, Indices (US30/US500/GER40). MAX_CLUSTER_POSITIONS=2 now meaningful.
+  - Sentiment veto → 50% size reduction: Opposing sentiment was silently killing trades (hard return). Now reduces size by 50% instead, letting the risk gate (not sentiment) be the final arbiter.
+  - Core safety limits UNCHANGED: MAX_RISK_PER_TRADE=2%, MAX_DAILY_LOSS=5%, MAX_DRAWDOWN=30%, DAILY_LOSS_BUFFER=4%, stops, circuit breakers.
+
 ---
 *Add new decisions below this line, newest first.*

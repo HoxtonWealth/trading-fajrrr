@@ -272,12 +272,16 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     const isLong = bestSignal.signal === 'long'
     const isShort = bestSignal.signal === 'short'
 
-    // Sentiment opposes direction → skip trade
+    // Sentiment opposes direction → reduce size by 50% (don't veto)
     if ((isLong && sentimentScore < -0.5) || (isShort && sentimentScore > 0.5)) {
-      return {
-        action: 'none',
-        instrument,
-        details: `Sentiment opposes ${bestSignal.signal} (score=${sentimentScore.toFixed(2)}), skipping`,
+      adjustedUnits = Math.floor(adjustedUnits * 0.5)
+      // If reduced to 0, then skip
+      if (adjustedUnits <= 0) {
+        return {
+          action: 'none',
+          instrument,
+          details: `Sentiment opposes ${bestSignal.signal} (score=${sentimentScore.toFixed(2)}), size reduced to 0`,
+        }
       }
     }
 

@@ -83,9 +83,30 @@ describe('calculatePositionSize', () => {
       equity: 5000, atr: 15, stopMultiplier: 2.0, close: 2300,
     })
     // Base: (5000 * 0.02) / 30 = 3.33 units before vol adjustment
-    // Vol adjustment: (15/2300)*sqrt(252) ≈ 0.1035, volMult = 0.15/0.1035 ≈ 1.449
-    // 3.33 * 1.449 ≈ 4.83 → floor = 4
+    // Vol adjustment: (15/2300)*sqrt(252) ≈ 0.1035, volMult = 0.20/0.1035 ≈ 1.932
+    // 3.33 * 1.932 ≈ 6.44 → floor = 6
     expect(result.units).toBeGreaterThan(0)
     expect(result.units).toBeLessThan(20) // sanity check
+  })
+
+  it('caps XAU_USD units at leverage cap of 15', () => {
+    // Large equity + low close → units would exceed leverage cap
+    // maxUnits = (equity * leverageCap) / close = (50000 * 15) / 2300 ≈ 326
+    const result = calculatePositionSize({
+      equity: 50000, atr: 5, stopMultiplier: 1.5, close: 2300,
+      instrument: 'XAU_USD',
+    })
+    const maxUnits = Math.floor((50000 * 15) / 2300)
+    expect(result.units).toBeLessThanOrEqual(maxUnits)
+  })
+
+  it('applies correct leverage cap for new instruments', () => {
+    // GER40_EUR has leverage cap 15
+    const result = calculatePositionSize({
+      equity: 50000, atr: 50, stopMultiplier: 2.0, close: 18000,
+      instrument: 'GER40_EUR',
+    })
+    const maxUnits = Math.floor((50000 * 15) / 18000)
+    expect(result.units).toBeLessThanOrEqual(maxUnits)
   })
 })
