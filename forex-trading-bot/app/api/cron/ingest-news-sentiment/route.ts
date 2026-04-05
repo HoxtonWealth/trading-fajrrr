@@ -13,6 +13,12 @@ const INSTRUMENT_KEYWORDS: Record<string, string[]> = {
   USD_JPY: ['dollar yen', 'usd/jpy', 'usdjpy', 'boj', 'bank of japan', 'japanese yen'],
   BCO_USD: ['brent', 'crude oil', 'opec', 'oil price', 'petroleum'],
   US30_USD: ['dow jones', 'djia', 'us30', 'wall street', 'dow industrials'],
+  AUD_USD: ['australian dollar', 'aud/usd', 'audusd', 'rba', 'reserve bank of australia', 'aussie dollar'],
+  GBP_USD: ['british pound', 'gbp/usd', 'gbpusd', 'cable', 'sterling', 'bank of england', 'boe'],
+  NZD_USD: ['new zealand dollar', 'nzd/usd', 'nzdusd', 'kiwi dollar', 'rbnz'],
+  XAG_USD: ['silver', 'xag', 'silver price', 'precious metal silver'],
+  US500_USD: ['s&p 500', 'sp500', 'spx', 'us500', 's&p index'],
+  GER40_EUR: ['dax', 'german stock', 'ger40', 'germany 40', 'deutsche börse', 'german equities'],
 }
 
 export async function GET(request: Request) {
