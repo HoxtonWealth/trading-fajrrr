@@ -174,8 +174,12 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   }
 
   // --- Handle exit signal ---
+  // Only exit if the exit strategy matches the trade's strategy (don't let MR exit a TF trade)
   if (bestSignal.exitSignal && openTrades && openTrades.length > 0) {
-    const tradeToClose = openTrades[0]
+    const tradeToClose = openTrades.find(t => t.strategy === bestSignal.strategy) ?? null
+    if (!tradeToClose) {
+      return { action: 'none', instrument, details: `Exit signal from ${bestSignal.strategy} but open trade is ${openTrades[0].strategy} — skipped` }
+    }
 
     // Close on OANDA directly (no Render monitor yet)
     try {
@@ -348,13 +352,13 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     instrument,
     units: adjustedUnits,
     entryPrice: closePrice,
-    leverage: (adjustedUnits * closePrice) / equity,
+    leverage: (adjustedUnits * closePrice) / (equity / 3.6725), // Convert AED equity to USD
     dailyTradeCount: todayTrades?.length ?? 0,
     openPositionCount: allOpenTrades?.length ?? 0,
     openInstruments,
     correlations,
-    currentSpread: 0,
-    averageSpread: 1,
+    currentSpread: 0, // TODO: fetch actual bid/ask spread from Capital.com
+    averageSpread: 1, // TODO: track rolling average spread per instrument
     dailyPnlPercent,
     drawdownPercent: equitySnapshot?.drawdown_percent ? equitySnapshot.drawdown_percent / 100 : 0,
   }

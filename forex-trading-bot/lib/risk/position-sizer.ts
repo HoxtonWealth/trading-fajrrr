@@ -4,8 +4,12 @@ import {
   LEVERAGE_CAPS,
 } from './constants'
 
+// AED/USD is a fixed peg — account equity is in AED, instruments trade in USD/GBP/etc.
+// Without conversion, all position sizes are inflated by ~3.67x.
+const AED_PER_USD = 3.6725
+
 export interface PositionSizeInput {
-  equity: number
+  equity: number     // account equity in AED (from Capital.com)
   atr: number
   stopMultiplier: number
   close: number
@@ -27,7 +31,11 @@ export interface PositionSizeResult {
  * 3. Volatility targeting: scale by target_vol / estimated_vol
  */
 export function calculatePositionSize(input: PositionSizeInput): PositionSizeResult {
-  const { equity, atr, stopMultiplier, close, winRate, avgWinLoss } = input
+  const { atr, stopMultiplier, close, winRate, avgWinLoss } = input
+
+  // Convert AED equity to USD — all instruments are priced in USD (or close proxy).
+  // Without this, positions are ~3.67x too large.
+  const equity = input.equity / AED_PER_USD
 
   if (equity <= 0 || atr <= 0 || close <= 0) {
     return { units: 0, riskPercent: 0, stopDistance: 0 }
