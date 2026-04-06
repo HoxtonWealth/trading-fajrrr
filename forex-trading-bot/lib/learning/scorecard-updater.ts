@@ -91,7 +91,35 @@ export async function updateScorecards(): Promise<{ updated: number }> {
     }
   }
 
-  // Also aggregate from agent predictions
+  // Backfill actual_outcome on predictions for closed trades
+  // Outcome = trade direction if profitable, opposite if not
+  for (const trade of trades) {
+    const won = trade.pnl > 0
+    const outcome = won
+      ? (trade.strategy === 'trend' ? 'long' : 'short') // simplification: use chief_decision direction
+      : 'hold' // loss means the prediction was wrong — "hold" would have been better
+
+    // Get the actual direction from the trade for more accurate backfill
+    const { data: fullTrade } = await supabase
+      .from('trades')
+      .select('direction')
+      .eq('instrument', trade.instrument)
+      .eq('strategy', trade.strategy)
+      .eq('status', 'closed')
+      .eq('pnl', trade.pnl)
+      .limit(1)
+      .single()
+
+    const actualOutcome = won ? (fullTrade?.direction ?? 'hold') : 'hold'
+
+    await supabase
+      .from('trade_agent_predictions')
+      .update({ actual_outcome: actualOutcome })
+      .eq('instrument', trade.instrument)
+      .is('actual_outcome', null)
+  }
+
+  // Aggregate from agent predictions (now with backfilled outcomes)
   const { data: predictions } = await supabase
     .from('trade_agent_predictions')
     .select('agent, instrument, predicted_signal, chief_decision, actual_outcome')
