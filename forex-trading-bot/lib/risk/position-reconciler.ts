@@ -69,12 +69,31 @@ export async function reconcilePositions(): Promise<ReconciliationResult> {
       }
 
       // Not found on broker — broker closed this position
+      // Estimate exit price from latest candle close
+      const { data: latestCandle } = await supabase
+        .from('candles')
+        .select('close')
+        .eq('instrument', trade.instrument)
+        .eq('granularity', 'H4')
+        .order('time', { ascending: false })
+        .limit(1)
+        .single()
+
+      const exitPrice = latestCandle?.close ?? null
+      const pnl = exitPrice
+        ? (trade.direction === 'long'
+          ? (exitPrice - trade.entry_price) * trade.units
+          : (trade.entry_price - exitPrice) * trade.units)
+        : null
+
       await supabase
         .from('trades')
         .update({
           status: 'closed',
           closed_at: new Date().toISOString(),
           close_reason: 'broker_closed',
+          exit_price: exitPrice,
+          pnl,
         })
         .eq('id', trade.id)
 
@@ -92,7 +111,7 @@ export async function reconcilePositions(): Promise<ReconciliationResult> {
       p.instrument === trade.instrument &&
       directionMatches(trade.direction, p.direction) &&
       !matchedDealIds.has(p.dealId) &&
-      Math.abs(p.size - trade.units) / trade.units < 0.1 // within 10%
+      trade.units > 0 && Math.abs(p.size - trade.units) / trade.units < 0.1 // within 10%
     )
 
     if (candidates.length === 1) {

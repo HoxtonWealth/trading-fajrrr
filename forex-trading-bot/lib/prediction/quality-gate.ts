@@ -22,7 +22,7 @@ interface QualityResult {
  * Quality Gate — Blueprint Section 6.
  *
  * ALL 5 criteria must pass:
- * 1. Strength > 0.6
+ * 1. Strength > 0.4
  * 2. Maps to at least one bot instrument
  * 3. Generated within last 12 hours
  * 4. No opposing signal of equal or greater strength

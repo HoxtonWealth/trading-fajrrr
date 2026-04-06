@@ -1,9 +1,8 @@
 import { supabase } from '@/lib/services/supabase'
 import { getBrokerPositions, closePosition, modifyTradeStopLoss, BrokerPosition } from '@/lib/services/capital'
 import { LEVERAGE_CAPS } from './constants'
+import { AED_PER_USD } from './currency'
 import { TradeRow } from '@/lib/types/database'
-
-const AED_PER_USD = 3.6725
 
 export interface CircuitBreakerAction {
   dealId: string
@@ -247,8 +246,8 @@ export async function executeDailyLossResponse(): Promise<{
     if (!atr) continue
 
     const newStop = pos.direction === 'BUY'
-      ? pos.entryLevel - atr
-      : pos.entryLevel + atr
+      ? pos.entryLevel - atr * 1.5
+      : pos.entryLevel + atr * 1.5
 
     // Only tighten
     const shouldTighten = pos.stopLevel === null || (

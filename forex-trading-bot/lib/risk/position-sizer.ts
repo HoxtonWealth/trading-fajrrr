@@ -3,10 +3,7 @@ import {
   TARGET_ANNUAL_VOL,
   LEVERAGE_CAPS,
 } from './constants'
-
-// AED/USD is a fixed peg — account equity is in AED, instruments trade in USD/GBP/etc.
-// Without conversion, all position sizes are inflated by ~3.67x.
-const AED_PER_USD = 3.6725
+import { AED_PER_USD } from './currency'
 
 export interface PositionSizeInput {
   equity: number     // account equity in AED (from Capital.com)

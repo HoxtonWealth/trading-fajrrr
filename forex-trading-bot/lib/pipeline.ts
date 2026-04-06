@@ -7,9 +7,10 @@ import { runPreTradeChecks, PreTradeContext } from '@/lib/risk/pre-trade-checks'
 import { pearsonCorrelation } from '@/lib/risk/correlation'
 import { runAgentPipeline } from '@/lib/agent-pipeline'
 import { STOP_MULTIPLIER_TREND, STOP_MULTIPLIER_MEAN_REV } from '@/lib/risk/constants'
-import { placeMarketOrder, closePosition, getOpenTrades as getOandaTrades } from '@/lib/services/capital'
+import { placeMarketOrder, closePosition, getOpenTrades as getOandaTrades, getBrokerPositions, modifyTradeStopLoss } from '@/lib/services/capital'
 import { alertTradeOpened, alertTradeClosed } from '@/lib/services/telegram'
 import { TradeRow } from '@/lib/types/database'
+import { AED_PER_USD } from '@/lib/risk/currency'
 
 export interface PipelineResult {
   action: 'open_trade' | 'close_trade' | 'none'
@@ -352,7 +353,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     instrument,
     units: adjustedUnits,
     entryPrice: closePrice,
-    leverage: (adjustedUnits * closePrice) / (equity / 3.6725), // Convert AED equity to USD
+    leverage: (adjustedUnits * closePrice) / (equity / AED_PER_USD), // Convert AED equity to USD
     dailyTradeCount: todayTrades?.length ?? 0,
     openPositionCount: allOpenTrades?.length ?? 0,
     openInstruments,
@@ -427,7 +428,6 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // Post-open stop verification — ensure the stop actually exists on the broker
   if (dealId) {
     try {
-      const { getBrokerPositions, modifyTradeStopLoss } = await import('@/lib/services/capital')
       await new Promise(resolve => setTimeout(resolve, 1000))
       const positions = await getBrokerPositions()
       const thisPosition = positions.find(p => p.dealId === dealId)
