@@ -97,7 +97,8 @@ async function fetchYahooPrices(tickers: string[]): Promise<Map<string, number>>
   let yahooFinance: { quote: (ticker: string) => Promise<{ regularMarketPrice?: number }> }
   try {
     const mod = await import('yahoo-finance2')
-    yahooFinance = mod.default || mod
+    const YF = mod.default || (mod as any).YahooFinance
+    yahooFinance = typeof YF === 'function' ? new (YF as any)({ suppressNotices: ['yahooSurvey'] }) : YF
   } catch (importError) {
     console.error('[markets/refresh] yahoo-finance2 import failed:', importError instanceof Error ? importError.message : importError)
     return prices
