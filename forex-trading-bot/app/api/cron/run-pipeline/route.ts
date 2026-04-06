@@ -20,7 +20,46 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to run in current session' })
   }
 
-  // Circuit breakers — halt if drawdown or daily loss exceeds limits
+  // --- Step 1: Position reconciliation — sync broker state before any decisions ---
+  try {
+    const { reconcilePositions } = await import('@/lib/risk/position-reconciler')
+    const reconciliation = await reconcilePositions()
+
+    if (reconciliation.brokerClosed.length > 0 || reconciliation.orphaned.length > 0) {
+      const parts: string[] = []
+      if (reconciliation.brokerClosed.length > 0) {
+        parts.push(`${reconciliation.brokerClosed.length} position(s) closed by broker`)
+      }
+      if (reconciliation.orphaned.length > 0) {
+        parts.push(`${reconciliation.orphaned.length} orphaned record(s) cleaned up`)
+      }
+      await logCron('run-pipeline', `Reconciliation: ${parts.join(', ')}. ${reconciliation.matched} position(s) verified.`)
+    }
+  } catch (reconErr) {
+    console.error('[cron/run-pipeline] Reconciliation failed:', reconErr)
+    // Non-fatal: continue with pipeline
+  }
+
+  // --- Step 2: Stop loss verification — ensure all positions have stops ---
+  try {
+    const { verifyStopLosses } = await import('@/lib/risk/stop-loss-verifier')
+    const stopResult = await verifyStopLosses()
+
+    if (stopResult.fixed.length > 0 || stopResult.errors.length > 0) {
+      const parts: string[] = []
+      if (stopResult.fixed.length > 0) {
+        parts.push(`FIXED ${stopResult.fixed.length} missing stop(s): ${stopResult.fixed.map(f => `${f.instrument} @ ${f.stopSet.toFixed(4)}`).join(', ')}`)
+      }
+      if (stopResult.errors.length > 0) {
+        parts.push(`FAILED to fix ${stopResult.errors.length} stop(s)`)
+      }
+      await logCron('run-pipeline', `Stop verification: ${parts.join('. ')}`)
+    }
+  } catch (stopErr) {
+    console.error('[cron/run-pipeline] Stop verification failed:', stopErr)
+  }
+
+  // --- Step 3: Circuit breakers — graduated response ---
   try {
     const { data: latestEquity } = await supabase
       .from('equity_snapshots')
@@ -33,11 +72,24 @@ export async function GET(request: Request) {
       const drawdownDecimal = latestEquity.drawdown_percent / 100
 
       if (drawdownDecimal >= MAX_DRAWDOWN) {
-        const msg = `CIRCUIT BREAKER: Drawdown at ${latestEquity.drawdown_percent.toFixed(1)}% exceeds ${(MAX_DRAWDOWN * 100).toFixed(0)}% limit. All trading halted.`
+        // Graduated circuit breaker — close dangerous positions, tighten the rest
+        let cbSummary = 'Graduated response FAILED — could not execute.'
+        try {
+          const { executeCircuitBreakerResponse } = await import('@/lib/risk/circuit-breaker-response')
+          const cbResult = await executeCircuitBreakerResponse(latestEquity.equity)
+          cbSummary = `Closed ${cbResult.positionsClosed} position(s), tightened ${cbResult.stopsTightened} stop(s), kept ${cbResult.positionsKept} position(s).`
+          if (cbResult.errors.length > 0) {
+            cbSummary += ` Errors: ${cbResult.errors.length}.`
+          }
+        } catch (cbErr) {
+          console.error('[cron/run-pipeline] Circuit breaker response failed:', cbErr)
+        }
+
+        const msg = `CIRCUIT BREAKER: Drawdown at ${latestEquity.drawdown_percent.toFixed(1)}% exceeds ${(MAX_DRAWDOWN * 100).toFixed(0)}% limit. ${cbSummary} New trading halted.`
         await logCron('run-pipeline', msg, false)
         alertCircuitBreaker(
           `Drawdown ${latestEquity.drawdown_percent.toFixed(1)}% > ${(MAX_DRAWDOWN * 100).toFixed(0)}% max`,
-          'Pipeline halted — no new trades until drawdown recovers'
+          cbSummary
         ).catch(() => {})
         return NextResponse.json({ success: true, halted: true, reason: msg })
       }
@@ -45,11 +97,23 @@ export async function GET(request: Request) {
       if (latestEquity.daily_pnl < 0) {
         const dailyLossPercent = Math.abs(latestEquity.daily_pnl) / latestEquity.equity
         if (dailyLossPercent >= MAX_DAILY_LOSS) {
-          const msg = `DAILY LOSS LIMIT: Down ${(dailyLossPercent * 100).toFixed(1)}% today, exceeds ${(MAX_DAILY_LOSS * 100).toFixed(0)}% limit. Trading halted for today.`
+          // Daily loss — tighten all stops to 1x ATR before halting
+          let tightenSummary = ''
+          try {
+            const { executeDailyLossResponse } = await import('@/lib/risk/circuit-breaker-response')
+            const dlResult = await executeDailyLossResponse()
+            tightenSummary = dlResult.stopsTightened > 0
+              ? `Tightened ${dlResult.stopsTightened} stop(s) to 1x ATR.`
+              : ''
+          } catch (dlErr) {
+            console.error('[cron/run-pipeline] Daily loss stop tightening failed:', dlErr)
+          }
+
+          const msg = `DAILY LOSS LIMIT: Down ${(dailyLossPercent * 100).toFixed(1)}% today, exceeds ${(MAX_DAILY_LOSS * 100).toFixed(0)}% limit. ${tightenSummary} Trading halted for today.`
           await logCron('run-pipeline', msg, false)
           alertCircuitBreaker(
             `Daily loss ${(dailyLossPercent * 100).toFixed(1)}% > ${(MAX_DAILY_LOSS * 100).toFixed(0)}% max`,
-            'Pipeline halted for today — will resume tomorrow'
+            `Pipeline halted for today. ${tightenSummary}`
           ).catch(() => {})
           return NextResponse.json({ success: true, halted: true, reason: msg })
         }
@@ -59,6 +123,7 @@ export async function GET(request: Request) {
     console.error('[cron/run-pipeline] Circuit breaker check failed:', cbError)
   }
 
+  // --- Step 4: Run trading pipeline ---
   const INSTRUMENTS = await getActiveInstruments()
   const FRIENDLY_NAMES = await getFriendlyNames()
 
@@ -112,7 +177,6 @@ export async function GET(request: Request) {
     }
 
     if (trades.length === 0 && closes.length === 0) {
-      // Summarize why nothing happened
       const regimes = skipped.map(r => {
         const name = FRIENDLY_NAMES[r.instrument] ?? r.instrument
         if (r.details.includes('ranging')) return `${name} (quiet market)`

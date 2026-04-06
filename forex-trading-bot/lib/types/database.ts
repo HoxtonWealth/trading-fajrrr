@@ -42,6 +42,7 @@ export interface TradeRow {
   closed_at: string | null
   pnl: number | null
   close_reason: string | null
+  deal_id: string | null
   created_at: string
 }
 

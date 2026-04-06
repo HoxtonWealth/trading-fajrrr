@@ -377,12 +377,14 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // Execute directly on OANDA (no Render monitor yet — see README for future architecture)
   const oandaUnits = bestSignal.signal === 'short' ? -adjustedUnits : adjustedUnits
   let actualPrice = closePrice
+  let dealId: string | null = null
 
   try {
     const orderResult = await placeMarketOrder(instrument, oandaUnits, bestSignal.stopLoss!)
     if (orderResult.orderFillTransaction?.price) {
       actualPrice = parseFloat(orderResult.orderFillTransaction.price)
     }
+    dealId = orderResult.orderFillTransaction?.id ?? null
   } catch (oandaError) {
     console.error(`[pipeline] OANDA execution failed for ${instrument}:`, oandaError)
     return { action: 'none', instrument, details: `OANDA execution failed: ${oandaError instanceof Error ? oandaError.message : 'Unknown'}` }
@@ -401,6 +403,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     risk_percent: positionSize.riskPercent,
     status: 'open' as const,
     opened_at: new Date().toISOString(),
+    deal_id: dealId,
   }
 
   const { error: insertError } = await supabase
@@ -420,6 +423,22 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     stopLoss: bestSignal.stopLoss!,
     riskPercent: positionSize.riskPercent,
   }).catch(() => {})
+
+  // Post-open stop verification — ensure the stop actually exists on the broker
+  if (dealId) {
+    try {
+      const { getBrokerPositions, modifyTradeStopLoss } = await import('@/lib/services/capital')
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      const positions = await getBrokerPositions()
+      const thisPosition = positions.find(p => p.dealId === dealId)
+      if (thisPosition && thisPosition.stopLevel === null) {
+        console.warn(`[pipeline] Stop missing on newly opened ${instrument} (${dealId}), setting to ${bestSignal.stopLoss}`)
+        await modifyTradeStopLoss(dealId, bestSignal.stopLoss!)
+      }
+    } catch (verifyErr) {
+      console.error(`[pipeline] Post-open stop verification failed for ${instrument}:`, verifyErr)
+    }
+  }
 
   return {
     action: 'open_trade',

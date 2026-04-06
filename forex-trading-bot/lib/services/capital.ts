@@ -475,6 +475,40 @@ export async function getOpenTrades(): Promise<OandaTrade[]> {
   })
 }
 
+// --- Broker position data for reconciliation and stop verification ---
+
+export interface BrokerPosition {
+  dealId: string
+  instrument: string
+  direction: 'BUY' | 'SELL'
+  size: number
+  entryLevel: number
+  stopLevel: number | null
+  limitLevel: number | null
+  upl: number
+  createdDateUTC: string
+  currentBid: number
+  currentOffer: number
+}
+
+export async function getBrokerPositions(): Promise<BrokerPosition[]> {
+  const data = await capitalFetch<{ positions: CapitalPosition[] }>('/api/v1/positions')
+
+  return (data.positions ?? []).map(p => ({
+    dealId: p.position.dealId,
+    instrument: fromEpic(p.market.epic),
+    direction: p.position.direction,
+    size: p.position.size,
+    entryLevel: p.position.level,
+    stopLevel: p.position.stopLevel,
+    limitLevel: p.position.limitLevel,
+    upl: p.position.upl,
+    createdDateUTC: p.position.createdDateUTC,
+    currentBid: p.market.bid,
+    currentOffer: p.market.offer,
+  }))
+}
+
 export async function modifyTradeStopLoss(
   tradeId: string,
   stopLossPrice: number
