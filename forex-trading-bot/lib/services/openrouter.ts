@@ -5,7 +5,7 @@ export type ModelTier = 'cheap' | 'strong'
 
 const MODEL_MAP: Record<ModelTier, string> = {
   cheap: 'google/gemini-2.0-flash-001',
-  strong: 'anthropic/claude-sonnet-4-20250514',
+  strong: 'anthropic/claude-sonnet-4',
 }
 
 export interface LLMRequest {
