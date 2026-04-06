@@ -1,21 +1,23 @@
 /**
  * Kalshi API Client — free read API, no auth required for public markets.
  * Rate limit: 20 requests per second.
+ *
+ * Field names use "_dollars" suffix (strings) since the 2025 API update.
  */
 
 const KALSHI_BASE_URL = 'https://api.elections.kalshi.com/trade-api/v2'
 
-export interface KalshiMarket {
+interface KalshiMarketRaw {
   ticker: string
   title: string
   status: string
-  yes_bid: number
-  yes_ask: number
-  no_bid: number
-  no_ask: number
-  last_price: number
-  volume: number
-  open_interest: number
+  yes_bid_dollars: string
+  yes_ask_dollars: string
+  no_bid_dollars: string
+  no_ask_dollars: string
+  last_price_dollars: string
+  volume_fp: string
+  open_interest_fp: string
 }
 
 export interface KalshiPrice {
@@ -23,6 +25,24 @@ export interface KalshiPrice {
   volume: number
   ticker: string
   title: string
+}
+
+function parseKalshiMarket(m: KalshiMarketRaw): KalshiPrice {
+  const lastPrice = parseFloat(m.last_price_dollars || '0')
+  const yesBid = parseFloat(m.yes_bid_dollars || '0')
+  const yesAsk = parseFloat(m.yes_ask_dollars || '0')
+
+  // last_price_dollars is already in 0-1 range (dollars, not cents)
+  const probability = lastPrice > 0
+    ? lastPrice
+    : (yesBid + yesAsk) / 2
+
+  return {
+    probability,
+    volume: parseFloat(m.volume_fp || '0'),
+    ticker: m.ticker,
+    title: m.title,
+  }
 }
 
 export async function fetchKalshiMarket(ticker: string): Promise<KalshiPrice | null> {
@@ -34,22 +54,10 @@ export async function fetchKalshiMarket(ticker: string): Promise<KalshiPrice | n
       return null
     }
 
-    const data = await response.json() as { market: KalshiMarket }
-    const market = data.market
+    const data = await response.json() as { market: KalshiMarketRaw }
+    if (!data.market) return null
 
-    if (!market) return null
-
-    // Probability = midpoint of yes bid/ask, or last price
-    const probability = market.last_price > 0
-      ? market.last_price / 100
-      : (market.yes_bid + market.yes_ask) / 200
-
-    return {
-      probability,
-      volume: market.volume,
-      ticker: market.ticker,
-      title: market.title,
-    }
+    return parseKalshiMarket(data.market)
   } catch (error) {
     console.error(`[kalshi] Failed to fetch ${ticker}:`, error)
     return null
@@ -62,14 +70,9 @@ export async function fetchKalshiSeries(seriesTicker: string): Promise<KalshiPri
 
     if (!response.ok) return []
 
-    const data = await response.json() as { markets: KalshiMarket[] }
+    const data = await response.json() as { markets: KalshiMarketRaw[] }
 
-    return (data.markets ?? []).map(m => ({
-      probability: m.last_price > 0 ? m.last_price / 100 : (m.yes_bid + m.yes_ask) / 200,
-      volume: m.volume,
-      ticker: m.ticker,
-      title: m.title,
-    }))
+    return (data.markets ?? []).map(parseKalshiMarket)
   } catch (error) {
     console.error(`[kalshi] Failed to fetch series ${seriesTicker}:`, error)
     return []
