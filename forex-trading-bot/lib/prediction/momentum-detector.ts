@@ -43,8 +43,8 @@ export async function detectMomentumSignals(): Promise<Array<{
     const sameSign = (latest.velocity > 0 && latest.acceleration > 0) ||
                      (latest.velocity < 0 && latest.acceleration < 0)
 
-    if (absVelocity > 0.02 && sameSign) {
-      const strength = Math.min(1.0, absVelocity / 0.05) // Normalize: 0.05/hr = strength 1.0
+    if (absVelocity > 0.005 && sameSign) {
+      const strength = Math.min(1.0, absVelocity / 0.03) // Normalize: 0.03/hr = strength 1.0
 
       signals.push({
         marketId: market.id,

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/services/supabase'
 import { getActiveInstruments } from '@/lib/instruments'
-const MIN_STRENGTH = 0.6
+const MIN_STRENGTH = 0.4
 const MAX_AGE_HOURS = 12
 const MIN_VOLUME_POLYMARKET = 100000 // $100K
 
