@@ -52,20 +52,25 @@ interface CapitalPriceCandle {
   closePrice: { bid: number; ask: number }
 }
 
-async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Promise<Map<string, number>> {
-  const prices = new Map<string, number>()
+interface CapitalPriceHistory {
+  current: number
+  price1dAgo: number | null
+  price7dAgo: number | null
+  price90dAgo: number | null
+}
+
+async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Promise<Map<string, CapitalPriceHistory>> {
+  const prices = new Map<string, CapitalPriceHistory>()
   const headers = {
     'X-SECURITY-TOKEN': session.securityToken,
     'CST': session.cst,
     'Content-Type': 'application/json',
   }
 
-  // Use the proven /api/v1/prices/{epic} endpoint (same as existing capital.ts)
-  // Fetch latest daily candle for each instrument
   for (const epic of epics) {
     try {
       const response = await fetch(
-        `${CAPITAL_BASE_URL}/api/v1/prices/${epic}?resolution=DAY&max=1`,
+        `${CAPITAL_BASE_URL}/api/v1/prices/${epic}?resolution=DAY&max=90`,
         { headers, signal: AbortSignal.timeout(10000) }
       )
 
@@ -75,11 +80,17 @@ async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Pro
       }
 
       const data = await response.json() as { prices?: CapitalPriceCandle[] }
-      const candle = data.prices?.[0]
-      if (candle?.closePrice) {
-        const midPrice = (candle.closePrice.bid + candle.closePrice.ask) / 2
-        prices.set(epic, midPrice)
-      }
+      const candles = data.prices ?? []
+      if (candles.length === 0) continue
+
+      const mid = (c: CapitalPriceCandle) => (c.closePrice.bid + c.closePrice.ask) / 2
+      const current = mid(candles[0])
+      // Candles are newest-first: index 1 ≈ 1 day ago, 5 ≈ 1 week (trading days), ~63 ≈ 1 quarter
+      const price1dAgo = candles.length > 1 ? mid(candles[1]) : null
+      const price7dAgo = candles.length > 5 ? mid(candles[5]) : null
+      const price90dAgo = candles.length > 63 ? mid(candles[63]) : null
+
+      prices.set(epic, { current, price1dAgo, price7dAgo, price90dAgo })
     } catch (error) {
       console.error(`[markets/refresh] Capital.com ${epic}:`, error instanceof Error ? error.message : error)
     }
@@ -91,10 +102,17 @@ async function fetchCapitalPrices(session: CapitalSession, epics: string[]): Pro
 
 // --- Yahoo Finance ---
 
-async function fetchYahooPrices(tickers: string[]): Promise<Map<string, number>> {
-  const prices = new Map<string, number>()
+interface YahooPriceHistory {
+  current: number
+  price1dAgo: number | null
+  price7dAgo: number | null
+  price90dAgo: number | null
+}
 
-  let yahooFinance: { quote: (ticker: string) => Promise<{ regularMarketPrice?: number }> }
+async function fetchYahooPrices(tickers: string[]): Promise<Map<string, YahooPriceHistory>> {
+  const prices = new Map<string, YahooPriceHistory>()
+
+  let yahooFinance: any
   try {
     const mod = await import('yahoo-finance2')
     const YF = mod.default || (mod as any).YahooFinance
@@ -106,11 +124,20 @@ async function fetchYahooPrices(tickers: string[]): Promise<Map<string, number>>
 
   for (const ticker of tickers) {
     try {
-      const result = await yahooFinance.quote(ticker)
-      console.log(`[markets/refresh] Yahoo ${ticker}:`, JSON.stringify(result?.regularMarketPrice))
-      if (result?.regularMarketPrice) {
-        prices.set(ticker, result.regularMarketPrice)
-      }
+      const period1 = new Date(Date.now() - 95 * 24 * 60 * 60 * 1000) // ~95 days back
+      const chart = await yahooFinance.chart(ticker, { period1, interval: '1d' })
+      const quotes = chart?.quotes ?? []
+
+      if (quotes.length === 0) continue
+
+      const current = quotes[quotes.length - 1]?.close
+      if (!current) continue
+
+      const price1dAgo = quotes.length > 1 ? quotes[quotes.length - 2]?.close ?? null : null
+      const price7dAgo = quotes.length > 5 ? quotes[quotes.length - 6]?.close ?? null : null
+      const price90dAgo = quotes.length > 63 ? quotes[quotes.length - 64]?.close ?? null : null
+
+      prices.set(ticker, { current, price1dAgo, price7dAgo, price90dAgo })
     } catch (error) {
       console.error(`[markets/refresh] Yahoo Finance failed for ${ticker}:`, error instanceof Error ? error.message : error)
     }
@@ -126,20 +153,6 @@ function calcChangePct(current: number, historical: number | null): number | nul
   return ((current - historical) / historical) * 100
 }
 
-async function getHistoricalPrice(assetId: string, daysAgo: number): Promise<number | null> {
-  const targetDate = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString()
-
-  const { data } = await supabase
-    .from('market_prices')
-    .select('price')
-    .eq('asset_id', assetId)
-    .lte('recorded_at', targetDate)
-    .order('recorded_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  return data ? Number(data.price) : null
-}
 
 // --- AI Analysis ---
 
@@ -222,8 +235,8 @@ export async function GET() {
       fetchYahooPrices(externalAssets.map(a => a.yahoo_ticker!)),
     ])
 
-    const capPrices = capitalPrices.status === 'fulfilled' ? capitalPrices.value : new Map<string, number>()
-    const yahPrices = yahooPrices.status === 'fulfilled' ? yahooPrices.value : new Map<string, number>()
+    const capPrices = capitalPrices.status === 'fulfilled' ? capitalPrices.value : new Map<string, CapitalPriceHistory>()
+    const yahPrices = yahooPrices.status === 'fulfilled' ? yahooPrices.value : new Map<string, YahooPriceHistory>()
 
     if (capitalPrices.status === 'rejected') {
       const reason = capitalPrices.reason instanceof Error ? capitalPrices.reason.message : String(capitalPrices.reason)
@@ -246,31 +259,37 @@ export async function GET() {
 
     for (const asset of assets) {
       let price: number | undefined
+      let price1dAgo: number | null = null
+      let price7dAgo: number | null = null
+      let price90dAgo: number | null = null
 
       if (asset.data_source === 'capital' && asset.epic) {
-        price = capPrices.get(asset.epic)
-        if (!price) {
+        const hist = capPrices.get(asset.epic)
+        if (hist) {
+          price = hist.current
+          price1dAgo = hist.price1dAgo
+          price7dAgo = hist.price7dAgo
+          price90dAgo = hist.price90dAgo
+        } else {
           errors.push(`No price for ${asset.symbol} (epic: ${asset.epic})`)
         }
       } else if (asset.data_source === 'external' && asset.yahoo_ticker) {
-        price = yahPrices.get(asset.yahoo_ticker)
-        if (!price) {
+        const hist = yahPrices.get(asset.yahoo_ticker)
+        if (hist) {
+          price = hist.current
+          price1dAgo = hist.price1dAgo
+          price7dAgo = hist.price7dAgo
+          price90dAgo = hist.price90dAgo
+        } else {
           errors.push(`No price for ${asset.symbol} (ticker: ${asset.yahoo_ticker})`)
         }
       }
 
       if (!price) continue
 
-      // Get historical prices for change calculation
-      const [hist1d, hist7d, hist90d] = await Promise.all([
-        getHistoricalPrice(asset.id, 1),
-        getHistoricalPrice(asset.id, 7),
-        getHistoricalPrice(asset.id, 90),
-      ])
-
-      const change24h = calcChangePct(price, hist1d)
-      const change1w = calcChangePct(price, hist7d)
-      const change1q = calcChangePct(price, hist90d)
+      const change24h = calcChangePct(price, price1dAgo)
+      const change1w = calcChangePct(price, price7dAgo)
+      const change1q = calcChangePct(price, price90dAgo)
 
       // Upsert on (asset_id, price_date) — idempotent for same-day refreshes
       const { error: upsertError } = await supabase
