@@ -188,12 +188,20 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
       console.error(`[pipeline] OANDA close failed for ${instrument}:`, oandaError)
     }
 
+    // Calculate P&L from entry → current price
+    const exitPrice = closePrice
+    const pnl = tradeToClose.direction === 'long'
+      ? (exitPrice - tradeToClose.entry_price) * tradeToClose.units
+      : (tradeToClose.entry_price - exitPrice) * tradeToClose.units
+
     const { error: closeError } = await supabase
       .from('trades')
       .update({
         status: 'closed',
         closed_at: new Date().toISOString(),
         close_reason: bestSignal.exitReason,
+        exit_price: exitPrice,
+        pnl,
       })
       .eq('id', tradeToClose.id)
 
@@ -204,7 +212,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     alertTradeClosed({
       instrument,
       direction: tradeToClose.direction,
-      pnl: tradeToClose.pnl ?? 0,
+      pnl,
       closeReason: bestSignal.exitReason ?? 'unknown',
     }).catch(() => {})
 
