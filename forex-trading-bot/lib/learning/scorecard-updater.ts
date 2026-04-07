@@ -91,32 +91,35 @@ export async function updateScorecards(): Promise<{ updated: number }> {
     }
   }
 
-  // Backfill actual_outcome on predictions for closed trades
-  // Outcome = trade direction if profitable, opposite if not
-  for (const trade of trades) {
-    const won = trade.pnl > 0
-    const outcome = won
-      ? (trade.strategy === 'trend' ? 'long' : 'short') // simplification: use chief_decision direction
-      : 'hold' // loss means the prediction was wrong — "hold" would have been better
+  // Backfill actual_outcome on predictions for closed trades.
+  // Get full trade details (with opened_at/closed_at) for time-scoped matching.
+  const { data: closedTrades } = await supabase
+    .from('trades')
+    .select('instrument, direction, opened_at, closed_at, pnl')
+    .eq('status', 'closed')
+    .not('pnl', 'is', null)
 
-    // Get the actual direction from the trade for more accurate backfill
-    const { data: fullTrade } = await supabase
-      .from('trades')
-      .select('direction')
-      .eq('instrument', trade.instrument)
-      .eq('strategy', trade.strategy)
-      .eq('status', 'closed')
-      .eq('pnl', trade.pnl)
-      .limit(1)
-      .single()
+  if (closedTrades) {
+    for (const trade of closedTrades) {
+      if (!trade.opened_at || !trade.closed_at) continue
 
-    const actualOutcome = won ? (fullTrade?.direction ?? 'hold') : 'hold'
+      // Outcome = the trade's actual direction (what happened in the market).
+      // Agents that predicted this direction were correct, regardless of P&L.
+      const actualOutcome = trade.direction // 'long' or 'short'
 
-    await supabase
-      .from('trade_agent_predictions')
-      .update({ actual_outcome: actualOutcome })
-      .eq('instrument', trade.instrument)
-      .is('actual_outcome', null)
+      // Scope update to predictions made around this trade's open time (±1 hour)
+      const openTime = new Date(trade.opened_at)
+      const windowStart = new Date(openTime.getTime() - 60 * 60 * 1000).toISOString()
+      const windowEnd = new Date(openTime.getTime() + 60 * 60 * 1000).toISOString()
+
+      await supabase
+        .from('trade_agent_predictions')
+        .update({ actual_outcome: actualOutcome })
+        .eq('instrument', trade.instrument)
+        .is('actual_outcome', null)
+        .gte('created_at', windowStart)
+        .lte('created_at', windowEnd)
+    }
   }
 
   // Aggregate from agent predictions (now with backfilled outcomes)

@@ -14,11 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Scan scheduler — skip if current session doesn't need this cron now
-  const shouldRun = await shouldRunNow('run-pipeline')
-  if (!shouldRun) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to run in current session' })
-  }
+  // --- Safety operations run ALWAYS, regardless of scan scheduler ---
 
   // --- Step 1: Position reconciliation — sync broker state before any decisions ---
   try {
@@ -123,7 +119,12 @@ export async function GET(request: Request) {
     console.error('[cron/run-pipeline] Circuit breaker check failed:', cbError)
   }
 
-  // --- Step 4: Run trading pipeline ---
+  // --- Step 4: Run trading pipeline (scan scheduler gates only this part) ---
+  const shouldRun = await shouldRunNow('run-pipeline')
+  if (!shouldRun) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to trade. Safety checks completed.' })
+  }
+
   const INSTRUMENTS = await getActiveInstruments()
   const FRIENDLY_NAMES = await getFriendlyNames()
 
