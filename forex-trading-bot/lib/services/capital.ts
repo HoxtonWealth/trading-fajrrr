@@ -391,6 +391,10 @@ export async function placeMarketOrder(
     throw new Error(`Capital.com order rejected: ${confirmation.dealStatus}`)
   }
 
+  // The actual position deal ID is in affectedDeals[0].dealId, NOT confirmation.dealId.
+  // confirmation.dealId is the confirmation's own ID (off by 1 from the position).
+  const positionDealId = confirmation.affectedDeals?.[0]?.dealId ?? confirmation.dealId
+
   return {
     orderCreateTransaction: {
       id: confirmation.dealReference,
@@ -399,14 +403,14 @@ export async function placeMarketOrder(
       units: String(units),
     },
     orderFillTransaction: {
-      id: confirmation.dealId,
+      id: positionDealId,
       tradeOpened: {
-        tradeID: confirmation.dealId,
+        tradeID: positionDealId,
         units: String(units),
       },
       price: confirmation.level.toString(),
     },
-    relatedTransactionIDs: [confirmation.dealReference, confirmation.dealId],
+    relatedTransactionIDs: [confirmation.dealReference, positionDealId],
   }
 }
 
