@@ -120,9 +120,13 @@ export async function GET(request: Request) {
   }
 
   // --- Step 4: Run trading pipeline (scan scheduler gates only this part) ---
-  const shouldRun = await shouldRunNow('run-pipeline')
-  if (!shouldRun) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to trade. Safety checks completed.' })
+  const url = new URL(request.url)
+  const forceRun = url.searchParams.get('force') === 'true'
+  if (!forceRun) {
+    const shouldRun = await shouldRunNow('run-pipeline')
+    if (!shouldRun) {
+      return NextResponse.json({ success: true, skipped: true, reason: 'Scan scheduler: not time to trade. Safety checks completed.' })
+    }
   }
 
   const INSTRUMENTS = await getActiveInstruments()
