@@ -182,7 +182,23 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
       return { action: 'none', instrument, details: `Exit signal from ${bestSignal.strategy} but open trade is ${openTrades[0].strategy} — skipped` }
     }
 
-    // Close on OANDA directly (no Render monitor yet)
+    // Handle 'tighten_to_breakeven' — move stop to entry price, don't close
+    if (bestSignal.exitReason === 'tighten_to_breakeven') {
+      try {
+        if (tradeToClose.deal_id) {
+          await modifyTradeStopLoss(tradeToClose.deal_id, tradeToClose.entry_price)
+          await supabase
+            .from('trades')
+            .update({ stop_loss: tradeToClose.entry_price })
+            .eq('id', tradeToClose.id)
+        }
+      } catch (tightenErr) {
+        console.error(`[pipeline] Tighten to breakeven failed for ${instrument}:`, tightenErr)
+      }
+      return { action: 'none', instrument, details: `${instrument} reached middle BB — stop tightened to breakeven ${tradeToClose.entry_price}` }
+    }
+
+    // Full exit — close on Capital.com
     try {
       const oandaOpenTrades = await getOandaTrades()
       const oandaMatch = oandaOpenTrades.find(t => t.instrument === instrument)
@@ -235,6 +251,27 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
 
   if (isWeekendMode) {
     return { action: 'none', instrument, details: 'Weekend mode — new entries blocked' }
+  }
+
+  // Cooldown after stop-out — don't re-enter for 8 hours after a loss on this instrument
+  const COOLDOWN_HOURS = 8
+  const cooldownCutoff = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000).toISOString()
+  const { data: recentCloses } = await supabase
+    .from('trades')
+    .select('close_reason, pnl')
+    .eq('instrument', instrument)
+    .eq('status', 'closed')
+    .gte('closed_at', cooldownCutoff)
+    .order('closed_at', { ascending: false })
+    .limit(1)
+
+  if (recentCloses && recentCloses.length > 0) {
+    const last = recentCloses[0]
+    const wasLoss = (last.pnl ?? 0) < 0
+    const wasStopped = ['broker_closed', 'circuit_breaker_blown_stop', 'manual_close_oversized'].includes(last.close_reason ?? '')
+    if (wasLoss || wasStopped) {
+      return { action: 'none', instrument, details: `Cooldown: ${instrument} had a loss/stop within ${COOLDOWN_HOURS}h — skipping` }
+    }
   }
 
   if (hasOpenLong || hasOpenShort) {

@@ -62,9 +62,10 @@ export function calculatePositionSize(input: PositionSizeInput): PositionSizeRes
 
   // Step 3: Volatility targeting
   // estimated_vol = (ATR / close) * sqrt(252)
+  // Cap at 2x to prevent outsized positions on low-vol forex (3-5% vol → 4-7x without cap)
   const estimatedVol = (atr / close) * Math.sqrt(252)
   if (estimatedVol > 0) {
-    const volMultiplier = TARGET_ANNUAL_VOL / estimatedVol
+    const volMultiplier = Math.min(TARGET_ANNUAL_VOL / estimatedVol, 2.0)
     units *= volMultiplier
   }
 
@@ -75,6 +76,13 @@ export function calculatePositionSize(input: PositionSizeInput): PositionSizeRes
     if (units > maxUnits) {
       units = maxUnits
     }
+  }
+
+  // Step 5: Absolute notional ceiling — hard max regardless of other calculations
+  const maxNotional = equity * 10 // Never exceed 10x account equity in notional value
+  const notional = units * close
+  if (notional > maxNotional) {
+    units = maxNotional / close
   }
 
   // Round down — never round up risk

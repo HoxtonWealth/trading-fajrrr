@@ -23,19 +23,21 @@ export interface MeanRevSignal {
  * Entry Long: price near lower BB + RSI(14) < 45 + ADX(14) < 25
  * Entry Short: price near upper BB + RSI(14) > 55 + ADX(14) < 25
  *
- * Exit: price reaches middle BB (target)
+ * Exit: When price crosses past the OPPOSITE BB (full mean reversion).
+ *       Middle BB triggers a stop tighten to breakeven (handled in pipeline),
+ *       NOT an immediate exit.
  *
  * Stop: 1.5x ATR beyond entry Bollinger Band
  *
  * ── Tuning History ──────────────────────────────────────────
- * Blueprint:  RSI 30/70, ADX < 20, exact BB touch
+ * Blueprint:  RSI 30/70, ADX < 20, exact BB touch, exit at middle BB
  * 2026-04-01: RSI 40/60, ADX < 25 (loosened for learning)
  * 2026-04-03: RSI 45/55, ADX < 25, BB proximity 0.5% tolerance
- *             (data-driven: funnel analysis showed relaxing RSI
- *             from 40/60 to 45/55 adds +15% MR signals. BB proximity
- *             tolerance captures ~10 near-miss signals where price was
- *             within 0.5% of the band but not touching.
- *             See: _bmad-output/analysis/trade-frequency-report.md)
+ * 2026-04-09: Exit changed from middle BB to opposite BB.
+ *             Old exit at middle BB created 1:3 risk-reward AGAINST
+ *             (avg win AED 17 vs avg loss AED 56). Winners now run
+ *             to opposite band for ~1:1 risk-reward or better.
+ *             Middle BB now triggers breakeven stop (tighten_to_breakeven).
  */
 export function evaluateMeanReversion(
   current: MeanRevSnapshot,
@@ -48,12 +50,26 @@ export function evaluateMeanReversion(
   const BB_TOLERANCE = 0.005 // 0.5% proximity — price within 0.5% of BB counts as "at band"
 
   // --- Exit signals ---
+
+  // Long exit: price reached UPPER BB (full reversion target)
+  if (hasOpenLong && current.close >= current.bb_upper) {
+    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'reached_opposite_bb' }
+  }
+
+  // Short exit: price reached LOWER BB (full reversion target)
+  if (hasOpenShort && current.close <= current.bb_lower) {
+    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'reached_opposite_bb' }
+  }
+
+  // Middle BB: tighten stop to breakeven (not a full exit)
+  // This returns an exit signal with reason 'tighten_to_breakeven' that the pipeline
+  // uses to move the stop, not close the position.
   if (hasOpenLong && current.close >= current.bb_middle) {
-    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'reached_middle_bb' }
+    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'tighten_to_breakeven' }
   }
 
   if (hasOpenShort && current.close <= current.bb_middle) {
-    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'reached_middle_bb' }
+    return { signal: 'none', stopLoss: null, exitSignal: true, exitReason: 'tighten_to_breakeven' }
   }
 
   // --- Entry signals ---
