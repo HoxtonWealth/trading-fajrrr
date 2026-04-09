@@ -68,17 +68,17 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     return { action: 'none', instrument, details: 'Not enough indicator data (need at least 2 rows)' }
   }
 
-  // Get actual close price from candles
-  const { data: latestCandle } = await supabase
+  // Get actual close prices from candles (current + previous for pullback detection)
+  const { data: recentCandles } = await supabase
     .from('candles')
     .select('close')
     .eq('instrument', instrument)
     .eq('granularity', 'H4')
     .order('time', { ascending: false })
-    .limit(1)
-    .single()
+    .limit(2)
 
-  const closePrice = latestCandle?.close ?? indicatorRows[0].ema_20
+  const closePrice = recentCandles?.[0]?.close ?? indicatorRows[0].ema_20
+  const previousClose = recentCandles?.[1]?.close ?? indicatorRows[1].ema_20
 
   // Check for open trades on this instrument
   const { data: openTrades } = await supabase
@@ -133,7 +133,7 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
         ema_50: indicatorRows[1].ema_50,
         adx_14: indicatorRows[1].adx_14,
         atr_14: indicatorRows[1].atr_14,
-        close: indicatorRows[1].ema_20,
+        close: previousClose,
       }
       const trendSignal = evaluateTrendFollowing(current, previous, hasOpenLong, hasOpenShort)
       if (trendSignal.signal !== 'none' || trendSignal.exitSignal) {
