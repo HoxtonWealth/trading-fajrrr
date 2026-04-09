@@ -18,26 +18,29 @@ export interface TrendSignal {
 /**
  * Trend Following Strategy — Blueprint Section 2, Layer 2a
  *
- * Entry:
- *   - Long: EMA(20) crosses above EMA(50) AND ADX(14) > 15
- *   - Short: EMA(20) crosses below EMA(50) AND ADX(14) > 15
+ * Entry (two modes):
+ *   A. Crossover: EMA(20) crosses above/below EMA(50) AND ADX > 15
+ *   B. Pullback: Established trend (EMA aligned + ADX > 20) AND price
+ *      pulls back to EMA(20) zone (within 0.3% tolerance). Joins
+ *      existing trends instead of waiting for rare crossovers.
  *
  * Exit:
  *   - EMA crossover reversal
  *   - ADX drops below 10
  *   - Trailing stop hit (handled externally)
  *
- * Stop: 2x ATR(14) trailing stop
+ * Stop: 2x ATR(14) from entry
  *
  * ── Tuning History ──────────────────────────────────────────
- * Blueprint:  ADX entry 25, exit 20
+ * Blueprint:  ADX entry 25, exit 20, crossover only
  * 2026-04-01: ADX entry 20, exit 15 (loosened for learning)
- * 2026-04-03: ADX entry 15, exit 10 (data-driven: funnel analysis
- *             showed 11 crossovers in 14 days but only 3 passed ADX>20.
- *             Lowering to 15 captures 7 of 11 (+133%). Also fixes dead
- *             code in transition regime where TF ran but could never fire
- *             because regime=ADX 15-20 but TF required ADX>20.
- *             See: _bmad-output/analysis/trade-frequency-report.md)
+ * 2026-04-03: ADX entry 15, exit 10 (funnel analysis: +133% signals)
+ * 2026-04-09: Added pullback entries. Bot couldn't enter established
+ *             trends — 10/12 instruments trending (ADX 27-37) but no
+ *             crossovers for days. Pullback entries fill this gap:
+ *             confirmed trend + price touching EMA(20) = entry.
+ *             ADX threshold for pullbacks is 20 (higher than crossover's
+ *             15) to ensure trend is well-established before joining.
  */
 export function evaluateTrendFollowing(
   current: IndicatorSnapshot,
@@ -46,7 +49,9 @@ export function evaluateTrendFollowing(
   hasOpenShort: boolean,
 ): TrendSignal {
   const ADX_ENTRY_THRESHOLD = 15
+  const ADX_PULLBACK_THRESHOLD = 20 // Higher bar for pullback entries — trend must be strong
   const ADX_EXIT_THRESHOLD = 10
+  const PULLBACK_TOLERANCE = 0.003 // Price within 0.3% of EMA(20) counts as "at EMA"
 
   const emaLongNow = current.ema_20 > current.ema_50
   const emaLongPrev = previous.ema_20 > previous.ema_50
@@ -75,13 +80,40 @@ export function evaluateTrendFollowing(
     }
   }
 
-  // --- Entry signals ---
+  // --- Entry A: Crossover entries (original) ---
   if (crossedAbove && current.adx_14 > ADX_ENTRY_THRESHOLD) {
     const stopLoss = current.close - current.atr_14 * STOP_MULTIPLIER_TREND
     return { signal: 'long', stopLoss, exitSignal: false, exitReason: null }
   }
 
   if (crossedBelow && current.adx_14 > ADX_ENTRY_THRESHOLD) {
+    const stopLoss = current.close + current.atr_14 * STOP_MULTIPLIER_TREND
+    return { signal: 'short', stopLoss, exitSignal: false, exitReason: null }
+  }
+
+  // --- Entry B: Pullback entries (join established trends) ---
+  // Uptrend pullback: EMAs aligned bullish + strong trend + price dipped to EMA(20)
+  if (
+    !hasOpenLong &&
+    emaLongNow &&
+    current.adx_14 > ADX_PULLBACK_THRESHOLD &&
+    current.close <= current.ema_20 * (1 + PULLBACK_TOLERANCE) &&
+    current.close >= current.ema_20 * (1 - PULLBACK_TOLERANCE) &&
+    previous.close > previous.ema_20 // Was above EMA(20) last candle — confirming it's a pullback, not a breakdown
+  ) {
+    const stopLoss = current.close - current.atr_14 * STOP_MULTIPLIER_TREND
+    return { signal: 'long', stopLoss, exitSignal: false, exitReason: null }
+  }
+
+  // Downtrend pullback: EMAs aligned bearish + strong trend + price rallied to EMA(20)
+  if (
+    !hasOpenShort &&
+    emaShortNow &&
+    current.adx_14 > ADX_PULLBACK_THRESHOLD &&
+    current.close >= current.ema_20 * (1 - PULLBACK_TOLERANCE) &&
+    current.close <= current.ema_20 * (1 + PULLBACK_TOLERANCE) &&
+    previous.close < previous.ema_20 // Was below EMA(20) last candle — confirming it's a pullback, not a breakout
+  ) {
     const stopLoss = current.close + current.atr_14 * STOP_MULTIPLIER_TREND
     return { signal: 'short', stopLoss, exitSignal: false, exitReason: null }
   }
