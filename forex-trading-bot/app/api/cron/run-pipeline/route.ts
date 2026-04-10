@@ -179,7 +179,7 @@ export async function GET(request: Request) {
   // Screen instruments — prioritize top opportunities
   let instrumentsToTrade = INSTRUMENTS
   try {
-    const screened = await screenInstruments(INSTRUMENTS, 10)
+    const screened = await screenInstruments(INSTRUMENTS, INSTRUMENTS.length)
     if (screened.length > 0) {
       instrumentsToTrade = screened.map(s => s.instrument)
     }
