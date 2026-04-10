@@ -51,7 +51,7 @@ export function evaluateTrendFollowing(
   const ADX_ENTRY_THRESHOLD = 15
   const ADX_PULLBACK_THRESHOLD = 20 // Higher bar for pullback entries — trend must be strong
   const ADX_EXIT_THRESHOLD = 10
-  const PULLBACK_TOLERANCE = 0.003 // Price within 0.3% of EMA(20) counts as "at EMA"
+  const PULLBACK_TOLERANCE = 0.005 // Price within 0.5% of EMA(20) counts as "at EMA"
 
   const emaLongNow = current.ema_20 > current.ema_50
   const emaLongPrev = previous.ema_20 > previous.ema_50
