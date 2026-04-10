@@ -5,7 +5,7 @@ import { getActiveInstruments, getFriendlyNames } from '@/lib/instruments'
 import { screenInstruments } from '@/lib/intelligence/screener'
 import { shouldRunNow } from '@/lib/intelligence/scan-scheduler'
 import { supabase } from '@/lib/services/supabase'
-import { MAX_DRAWDOWN, MAX_DAILY_LOSS } from '@/lib/risk/constants'
+import { MAX_DRAWDOWN, MAX_DAILY_LOSS, CIRCUIT_BREAKER_HALT_HOURS } from '@/lib/risk/constants'
 import { alertCircuitBreaker } from '@/lib/services/telegram'
 
 export async function GET(request: Request) {
@@ -55,6 +55,17 @@ export async function GET(request: Request) {
     console.error('[cron/run-pipeline] Stop verification failed:', stopErr)
   }
 
+  // --- Step 2.5: Weekend handler — enter/exit weekend mode ---
+  try {
+    const { handleWeekendTransition } = await import('@/lib/risk/weekend-handler')
+    const weekendResult = await handleWeekendTransition()
+    if (weekendResult.action !== 'none') {
+      await logCron('run-pipeline', `Weekend: ${weekendResult.details}`)
+    }
+  } catch (weekendErr) {
+    console.error('[cron/run-pipeline] Weekend handler failed:', weekendErr)
+  }
+
   // --- Step 3: Circuit breakers — graduated response ---
   try {
     const { data: latestEquity } = await supabase
@@ -80,6 +91,13 @@ export async function GET(request: Request) {
         } catch (cbErr) {
           console.error('[cron/run-pipeline] Circuit breaker response failed:', cbErr)
         }
+
+        // Record when circuit breaker fired for 24h cooldown enforcement
+        await supabase.from('system_state').upsert({
+          key: 'circuit_breaker_fired_at',
+          value: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
 
         const msg = `CIRCUIT BREAKER: Drawdown at ${latestEquity.drawdown_percent.toFixed(1)}% exceeds ${(MAX_DRAWDOWN * 100).toFixed(0)}% limit. ${cbSummary} New trading halted.`
         await logCron('run-pipeline', msg, false)
@@ -117,6 +135,32 @@ export async function GET(request: Request) {
     }
   } catch (cbError) {
     console.error('[cron/run-pipeline] Circuit breaker check failed:', cbError)
+  }
+
+  // --- Step 3.5: Cooldown checks — circuit breaker and flash crash ---
+  try {
+    // Circuit breaker 24h cooldown
+    const { data: cbFired } = await supabase
+      .from('system_state')
+      .select('value')
+      .eq('key', 'circuit_breaker_fired_at')
+      .single()
+
+    if (cbFired?.value) {
+      const cooldownEnd = new Date(new Date(cbFired.value).getTime() + CIRCUIT_BREAKER_HALT_HOURS * 60 * 60 * 1000)
+      if (new Date() < cooldownEnd) {
+        const hoursLeft = ((cooldownEnd.getTime() - Date.now()) / (60 * 60 * 1000)).toFixed(1)
+        return NextResponse.json({ success: true, halted: true, reason: `Circuit breaker cooldown: ${hoursLeft}h remaining. Safety checks completed.` })
+      }
+    }
+
+    // Flash crash 24h cooldown
+    const { isFlashCrashCooldown } = await import('@/lib/risk/flash-crash-detector')
+    if (await isFlashCrashCooldown()) {
+      return NextResponse.json({ success: true, halted: true, reason: 'Flash crash cooldown active. Safety checks completed.' })
+    }
+  } catch (cooldownErr) {
+    console.error('[cron/run-pipeline] Cooldown check failed:', cooldownErr)
   }
 
   // --- Step 4: Run trading pipeline (scan scheduler gates only this part) ---

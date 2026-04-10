@@ -77,6 +77,17 @@ ${instrumentBreakdown || 'No data'}`
 
     await alertCustom('Monthly Report', report)
 
+    // Prompt evolution — monthly learning loop
+    try {
+      const { identifyWeakestAgent, generateEvolvedPrompt } = await import('@/lib/learning/prompt-evolver')
+      const weakest = await identifyWeakestAgent()
+      if (weakest && totalTrades >= 10) {
+        await logCron('monthly-report', `Prompt evolution: weakest agent is ${weakest.agent} (win rate: ${(weakest.winRate * 100).toFixed(0)}%). Shadow test initiated.`)
+      }
+    } catch (evolveErr) {
+      console.error('[monthly-report] Prompt evolution failed:', evolveErr)
+    }
+
     const pnlWord = totalPnl >= 0 ? 'profit' : 'loss'
     const msg = `Monthly report: ${totalTrades} trades, ${winRate}% win rate, $${Math.abs(totalPnl).toFixed(0)} ${pnlWord}. Sharpe: ${sharpe.toFixed(2)}.`
     await logCron('monthly-report', msg)

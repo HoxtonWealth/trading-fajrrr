@@ -124,22 +124,39 @@ async function fetchYahooPrices(tickers: string[]): Promise<Map<string, YahooPri
 
   for (const ticker of tickers) {
     try {
-      const period1 = new Date(Date.now() - 95 * 24 * 60 * 60 * 1000) // ~95 days back
+      // Try chart() first for full history
+      const period1 = new Date(Date.now() - 95 * 24 * 60 * 60 * 1000)
       const chart = await yahooFinance.chart(ticker, { period1, interval: '1d' })
       const quotes = chart?.quotes ?? []
 
-      if (quotes.length === 0) continue
-
-      const current = quotes[quotes.length - 1]?.close
-      if (!current) continue
-
-      const price1dAgo = quotes.length > 1 ? quotes[quotes.length - 2]?.close ?? null : null
-      const price7dAgo = quotes.length > 5 ? quotes[quotes.length - 6]?.close ?? null : null
-      const price90dAgo = quotes.length > 63 ? quotes[quotes.length - 64]?.close ?? null : null
-
-      prices.set(ticker, { current, price1dAgo, price7dAgo, price90dAgo })
-    } catch (error) {
-      console.error(`[markets/refresh] Yahoo Finance failed for ${ticker}:`, error instanceof Error ? error.message : error)
+      if (quotes.length > 0) {
+        const current = quotes[quotes.length - 1]?.close
+        if (current) {
+          prices.set(ticker, {
+            current,
+            price1dAgo: quotes.length > 1 ? quotes[quotes.length - 2]?.close ?? null : null,
+            price7dAgo: quotes.length > 5 ? quotes[quotes.length - 6]?.close ?? null : null,
+            price90dAgo: quotes.length > 63 ? quotes[quotes.length - 64]?.close ?? null : null,
+          })
+          continue
+        }
+      }
+      throw new Error('chart() returned no data')
+    } catch {
+      // Fallback: quote() for current price (works for bonds/indices where chart() fails)
+      try {
+        const quote = await yahooFinance.quote(ticker)
+        if (quote?.regularMarketPrice) {
+          prices.set(ticker, {
+            current: quote.regularMarketPrice,
+            price1dAgo: quote.regularMarketPreviousClose ?? null,
+            price7dAgo: null,
+            price90dAgo: null,
+          })
+        }
+      } catch (quoteErr) {
+        console.error(`[markets/refresh] Both chart and quote failed for ${ticker}:`, quoteErr instanceof Error ? quoteErr.message : quoteErr)
+      }
     }
   }
 

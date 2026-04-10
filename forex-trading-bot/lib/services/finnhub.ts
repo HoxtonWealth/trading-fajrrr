@@ -12,18 +12,37 @@ export interface FinnhubNews {
   url: string
 }
 
-export async function fetchForexNews(category: string = 'forex'): Promise<FinnhubNews[]> {
+/**
+ * Fetch news from multiple Finnhub categories for broader coverage.
+ * Free tier returns general market news — fetching multiple categories
+ * increases the chance of matching instrument-specific keywords.
+ */
+export async function fetchForexNews(): Promise<FinnhubNews[]> {
   if (!FINNHUB_API_KEY) {
     throw new Error('FINNHUB_API_KEY environment variable is not set')
   }
 
-  const response = await fetch(
-    `${FINNHUB_BASE_URL}/news?category=${category}&token=${FINNHUB_API_KEY}`
-  )
+  const categories = ['forex', 'general', 'merger']
+  const allNews: FinnhubNews[] = []
+  const seen = new Set<number>()
 
-  if (!response.ok) {
-    throw new Error(`Finnhub API error ${response.status}: ${await response.text()}`)
+  for (const category of categories) {
+    try {
+      const response = await fetch(
+        `${FINNHUB_BASE_URL}/news?category=${category}&token=${FINNHUB_API_KEY}`
+      )
+      if (!response.ok) continue
+      const articles = await response.json() as FinnhubNews[]
+      for (const a of articles) {
+        if (!seen.has(a.id)) {
+          seen.add(a.id)
+          allNews.push(a)
+        }
+      }
+    } catch {
+      // Continue with remaining categories
+    }
   }
 
-  return response.json() as Promise<FinnhubNews[]>
+  return allNews
 }

@@ -59,8 +59,8 @@ export async function fetchGeopoliticalNews(): Promise<GeopoliticalArticle[]> {
 
   for (let i = 0; i < GEOPOLITICAL_QUERIES.length; i++) {
     const query = GEOPOLITICAL_QUERIES[i]
-    // GDELT rate limit: 1 request per 5 seconds
-    if (i > 0) await new Promise(r => setTimeout(r, 5500))
+    // GDELT rate limit: 1 request per second (5.5s was overly conservative)
+    if (i > 0) await new Promise(r => setTimeout(r, 2000))
     try {
       const articles = await queryGdelt(query)
       for (const a of articles) {

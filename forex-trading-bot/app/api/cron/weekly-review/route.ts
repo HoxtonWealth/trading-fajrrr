@@ -3,6 +3,7 @@ import { runWeeklyReview } from '@/lib/learning/health-reviewer'
 import { runReflection } from '@/lib/learning/reflection-runner'
 import { alertWeeklyReview } from '@/lib/services/telegram'
 import { logCron } from '@/lib/services/cron-logger'
+import { supabase } from '@/lib/services/supabase'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
@@ -16,6 +17,15 @@ export async function GET(request: Request) {
 
     // Run weekly health review
     const review = await runWeeklyReview()
+
+    // Persist strategy pauses so pipeline can enforce them
+    await supabase
+      .from('system_state')
+      .upsert({
+        key: 'paused_strategies',
+        value: JSON.stringify(review.strategyPauses),
+        updated_at: new Date().toISOString(),
+      })
 
     await alertWeeklyReview({
       sharpeRatio: review.sharpeRatio,

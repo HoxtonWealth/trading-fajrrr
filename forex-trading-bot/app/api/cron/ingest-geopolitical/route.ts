@@ -32,13 +32,15 @@ export async function GET(request: Request) {
       .upsert(rows, { onConflict: 'title' })
 
     if (error) {
-      // If unique constraint doesn't exist on title, fall back to insert + ignore dupes
-      const { error: insertError } = await supabase
-        .from('news_cache')
-        .insert(rows)
-
-      if (insertError) {
-        throw new Error(`news_cache insert failed: ${insertError.message}`)
+      console.error('[ingest-geopolitical] Upsert failed:', error.message, error.details, error.hint)
+      // Fall back to individual inserts, ignoring duplicates
+      let inserted = 0
+      for (const row of rows) {
+        const { error: singleErr } = await supabase.from('news_cache').upsert(row, { onConflict: 'title' })
+        if (!singleErr) inserted++
+      }
+      if (inserted === 0) {
+        throw new Error(`news_cache: all ${rows.length} inserts failed. Original error: ${error.message}`)
       }
     }
 

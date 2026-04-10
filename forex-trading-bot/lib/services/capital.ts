@@ -479,6 +479,20 @@ export async function getOpenTrades(): Promise<OandaTrade[]> {
   })
 }
 
+// --- Spread data for pre-trade checks ---
+
+export async function getCurrentSpread(instrument: string): Promise<{ bid: number; offer: number; spread: number }> {
+  const epic = toEpic(instrument)
+  const data = await capitalFetch<{ prices: CapitalPriceCandle[] }>(
+    `/api/v1/prices/${epic}?resolution=MINUTE&max=1`
+  )
+  const candle = data.prices?.[0]
+  if (!candle) throw new Error(`No price data for ${instrument}`)
+  const bid = candle.closePrice.bid
+  const offer = candle.closePrice.ask
+  return { bid, offer, spread: offer - bid }
+}
+
 // --- Broker position data for reconciliation and stop verification ---
 
 export interface BrokerPosition {

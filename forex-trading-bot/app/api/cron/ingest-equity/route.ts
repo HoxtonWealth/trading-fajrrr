@@ -75,6 +75,25 @@ export async function GET(request: Request) {
       throw new Error(`Equity snapshot insert failed: ${error.message}`)
     }
 
+    // 6. Flash crash detection — check for sudden large equity drops
+    try {
+      const { detectFlashCrash, recordFlashCrashHalt } = await import('@/lib/risk/flash-crash-detector')
+      const flash = await detectFlashCrash()
+      if (flash.detected) {
+        await recordFlashCrashHalt()
+        const { executeCircuitBreakerResponse } = await import('@/lib/risk/circuit-breaker-response')
+        await executeCircuitBreakerResponse(equity)
+        const { alertCircuitBreaker } = await import('@/lib/services/telegram')
+        alertCircuitBreaker(
+          `FLASH CRASH: ${flash.movePct?.toFixed(1)}% equity move in ~5min`,
+          'Graduated response executed. Trading halted for 24h.'
+        ).catch(() => {})
+        await logCron('ingest-equity', `FLASH CRASH detected: ${flash.movePct?.toFixed(1)}% move. Positions managed, trading halted 24h.`, false)
+      }
+    } catch (fcErr) {
+      console.error('[ingest-equity] Flash crash detection failed:', fcErr)
+    }
+
     const pnlWord = dailyPnl >= 0 ? 'up' : 'down'
     const msg = `Account at $${equity.toFixed(0)} (${pnlWord} $${Math.abs(dailyPnl).toFixed(0)} today). ${openPositions} open position${openPositions !== 1 ? 's' : ''}. Drawdown: ${drawdownPercent.toFixed(1)}%.`
     await logCron('ingest-equity', msg)

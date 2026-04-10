@@ -123,12 +123,12 @@ export async function handleWeekendTransition(): Promise<WeekendCheckResult> {
       .from('system_state')
       .upsert({ key: 'weekend_mode', value: 'false', updated_at: now.toISOString() })
 
+    alertWeekend('exit_weekend', 'Normal trading resumed.').catch(() => {})
+
     return {
       action: 'exit_weekend',
       details: 'Weekend mode OFF. Normal trading resumed.',
     }
-
-    alertWeekend('exit_weekend', 'Normal trading resumed.').catch(() => {})
   }
 
   return { action: 'none', details: isWeekendMode ? 'In weekend mode' : 'Normal trading hours' }

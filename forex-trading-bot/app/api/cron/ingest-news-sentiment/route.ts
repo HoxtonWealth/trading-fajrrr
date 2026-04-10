@@ -7,18 +7,18 @@ import { logCron } from '@/lib/services/cron-logger'
 import { getActiveInstruments } from '@/lib/instruments'
 
 const INSTRUMENT_KEYWORDS: Record<string, string[]> = {
-  XAU_USD: ['gold', 'xau', 'precious metal', 'bullion', 'safe haven'],
-  EUR_GBP: ['euro pound', 'eur/gbp', 'ecb boe', 'sterling euro'],
-  EUR_USD: ['euro dollar', 'eur/usd', 'eurusd', 'ecb fed', 'european central bank'],
-  USD_JPY: ['dollar yen', 'usd/jpy', 'usdjpy', 'boj', 'bank of japan', 'japanese yen'],
-  BCO_USD: ['brent', 'crude oil', 'opec', 'oil price', 'petroleum'],
-  US30_USD: ['dow jones', 'djia', 'us30', 'wall street', 'dow industrials'],
-  AUD_USD: ['australian dollar', 'aud/usd', 'audusd', 'rba', 'reserve bank of australia', 'aussie dollar'],
-  GBP_USD: ['british pound', 'gbp/usd', 'gbpusd', 'cable', 'sterling', 'bank of england', 'boe'],
-  NZD_USD: ['new zealand dollar', 'nzd/usd', 'nzdusd', 'kiwi dollar', 'rbnz'],
-  XAG_USD: ['silver', 'xag', 'silver price', 'precious metal silver'],
-  US500_USD: ['s&p 500', 'sp500', 'spx', 'us500', 's&p index'],
-  GER40_EUR: ['dax', 'german stock', 'ger40', 'germany 40', 'deutsche börse', 'german equities'],
+  XAU_USD: ['gold', 'xau', 'precious metal', 'bullion', 'safe haven', 'gold price', 'gold futures'],
+  EUR_GBP: ['euro pound', 'eur/gbp', 'ecb boe', 'sterling euro', 'euro', 'sterling'],
+  EUR_USD: ['euro dollar', 'eur/usd', 'eurusd', 'ecb', 'fed', 'european central bank', 'euro', 'federal reserve'],
+  USD_JPY: ['dollar yen', 'usd/jpy', 'usdjpy', 'boj', 'bank of japan', 'yen', 'japanese'],
+  BCO_USD: ['brent', 'crude oil', 'opec', 'oil price', 'petroleum', 'oil futures', 'energy'],
+  US30_USD: ['dow jones', 'djia', 'us30', 'wall street', 'dow industrials', 'dow futures'],
+  AUD_USD: ['australian dollar', 'aud/usd', 'audusd', 'rba', 'reserve bank of australia', 'aussie'],
+  GBP_USD: ['british pound', 'gbp/usd', 'gbpusd', 'cable', 'sterling', 'bank of england', 'boe', 'pound'],
+  NZD_USD: ['new zealand dollar', 'nzd/usd', 'nzdusd', 'kiwi', 'rbnz', 'new zealand'],
+  XAG_USD: ['silver', 'xag', 'silver price', 'precious metal', 'silver futures'],
+  US500_USD: ['s&p 500', 'sp500', 'spx', 'us500', 's&p', 'wall street', 'nasdaq'],
+  GER40_EUR: ['dax', 'german stock', 'ger40', 'germany', 'deutsche', 'european stocks', 'eurozone'],
 }
 
 export async function GET(request: Request) {

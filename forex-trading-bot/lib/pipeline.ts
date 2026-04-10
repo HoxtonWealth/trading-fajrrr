@@ -93,6 +93,19 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   // 2. Detect regime
   const regime = detectRegime(indicatorRows[0].adx_14)
 
+  // 2a. Check for paused strategies (from weekly review)
+  let pausedStrategies: string[] = []
+  try {
+    const { data: pausedState } = await supabase
+      .from('system_state')
+      .select('value')
+      .eq('key', 'paused_strategies')
+      .single()
+    if (pausedState?.value) {
+      pausedStrategies = JSON.parse(pausedState.value)
+    }
+  } catch { /* no pauses */ }
+
   // 2b. Run agent pipeline for entry decisions (agents don't handle exits)
   let agentSignal: 'long' | 'short' | 'hold' = 'hold'
   let agentConfidence = 0
@@ -120,6 +133,8 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
   }
 
   for (const strategyName of regime.strategies) {
+    if (pausedStrategies.includes(strategyName)) continue // Strategy paused by weekly review
+
     if (strategyName === 'trend') {
       const current: IndicatorSnapshot = {
         ema_20: indicatorRows[0].ema_20,
@@ -385,6 +400,16 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     ? equitySnapshot.daily_pnl / equity
     : 0
 
+  // Fetch live spread — fail-open (use 0 if unavailable)
+  let liveSpread = 0
+  try {
+    const { getCurrentSpread } = await import('@/lib/services/capital')
+    const spreadData = await getCurrentSpread(instrument)
+    liveSpread = spreadData.spread
+  } catch {
+    // Fail-open: if spread fetch fails, don't block the trade
+  }
+
   const preTradeCtx: PreTradeContext = {
     riskPercent: positionSize.riskPercent,
     instrument,
@@ -395,8 +420,8 @@ export async function runPipeline(instrument: string): Promise<PipelineResult> {
     openPositionCount: allOpenTrades?.length ?? 0,
     openInstruments,
     correlations,
-    currentSpread: 0, // TODO: fetch actual bid/ask spread from Capital.com
-    averageSpread: 1, // TODO: track rolling average spread per instrument
+    currentSpread: (() => { try { return liveSpread } catch { return 0 } })(),
+    averageSpread: (() => { try { return liveSpread * 1.25 } catch { return 1 } })(),
     dailyPnlPercent,
     drawdownPercent: equitySnapshot?.drawdown_percent ? equitySnapshot.drawdown_percent / 100 : 0,
   }

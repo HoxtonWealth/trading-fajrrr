@@ -1,6 +1,7 @@
 import { callLLM, parseLLMJson } from '@/lib/services/openrouter'
 import { AgentScorecard, DebateArgument, ChiefDecision } from './types'
 import { getRelevantLessons } from '@/lib/learning/post-mortem'
+import { supabase } from '@/lib/services/supabase'
 
 const SYSTEM_PROMPT = `You are the Chief Analyst for a forex trading bot. You make the final trading decision.
 
@@ -73,7 +74,23 @@ Key points: ${bullArg.keyPoints.join('; ')}
 
 BEAR CASE:
 ${bearArg.argument}
-Key points: ${bearArg.keyPoints.join('; ')}${lessonsContext}`,
+Key points: ${bearArg.keyPoints.join('; ')}${lessonsContext}${await (async () => {
+        try {
+          const { data: reflections } = await supabase
+            .from('reflections')
+            .select('patterns, recommendations')
+            .order('created_at', { ascending: false })
+            .limit(2)
+          if (reflections && reflections.length > 0) {
+            const lines = reflections.flatMap(r => {
+              const patterns = (r.patterns as Array<{ type: string; description: string }>) ?? []
+              return [...patterns.map(p => `- [${p.type}] ${p.description}`), `Recommendation: ${r.recommendations}`]
+            })
+            return '\n\nSYSTEM REFLECTIONS (from recent trade batch analysis):\n' + lines.join('\n')
+          }
+        } catch { /* non-critical */ }
+        return ''
+      })()}`,
       maxTokens: 300,
     })
 

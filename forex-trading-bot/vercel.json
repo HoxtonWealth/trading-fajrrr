@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/poll-prediction-markets",
-      "schedule": "*/5 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/generate-pm-signals",
@@ -30,7 +30,7 @@
     },
     {
       "path": "/api/cron/pm-scenario-analysis",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/update-scorecards",
